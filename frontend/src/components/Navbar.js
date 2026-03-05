@@ -13,7 +13,7 @@ const Navbar = () => {
   return (
     <nav style={styles.nav}>
       <Link to="/" style={styles.brand}>
-        MERN App
+        CareerCraft AI
       </Link>
       <div style={styles.links}>
         {user ? (

@@ -3,7 +3,7 @@ from fastapi.exceptions import HTTPException, RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from routers import auth, users
+from routers import auth, users, l1, l2
 from core.database import connect_db, disconnect_db
 
 app = FastAPI(title="MERN → FastAPI Template", version="1.0.0")
@@ -29,6 +29,8 @@ async def shutdown():
 # ─── Routers ─────────────────────────────────────────────────
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
+app.include_router(l1.router, prefix="/api/l1", tags=["L1 Scraper"])
+app.include_router(l2.router, prefix="/api/l2", tags=["L2 Worker Intelligence"])
 
 # ─── Health check ────────────────────────────────────────────
 @app.get("/")

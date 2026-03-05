@@ -55,11 +55,11 @@ const AdminPanel = () => {
     try {
       const res = await axios.post(`/api/l1/scrape?${params}`);
       addLog(
-        `✅ ${res.data.message} — ${res.data.cities.length} cities × ${res.data.roles.length} roles`,
+        `${res.data.message} — ${res.data.cities.length} cities × ${res.data.roles.length} roles`,
       );
       startPolling();
     } catch (e) {
-      addLog(`❌ ${e.response?.data?.message || e.message}`);
+      addLog(`${e.response?.data?.message || e.message}`);
     }
   };
 
@@ -76,10 +76,10 @@ const AdminPanel = () => {
         clearInterval(pollRef.current);
         setPolling(false);
         addLog(
-          `✅ Scraper done. ${st.last_result?.new_posts ?? 0} new posts, ${st.last_result?.existing_posts ?? 0} existing.`,
+          `Scraper done. ${st.last_result?.new_posts ?? 0} new posts, ${st.last_result?.existing_posts ?? 0} existing.`,
         );
         if (st.last_result?.errors?.length) {
-          addLog(`⚠️ Errors: ${st.last_result.errors.slice(0, 3).join(" | ")}`);
+          addLog(`Errors: ${st.last_result.errors.slice(0, 3).join(" | ")}`);
         }
       }
     }, 3000);
@@ -108,14 +108,14 @@ const AdminPanel = () => {
         {status && (
           <>
             <span style={a.stat}>
-              📄 {status.total_job_posts.toLocaleString()} job posts
+               {status.total_job_posts.toLocaleString()} job posts
             </span>
             <span style={a.stat}>
-              📊 {status.total_aggregates.toLocaleString()} aggregates
+               {status.total_aggregates.toLocaleString()} aggregates
             </span>
             {status.last_run && (
               <span style={a.stat}>
-                🕐 Last run: {new Date(status.last_run).toLocaleString()}
+                 Last run: {new Date(status.last_run).toLocaleString()}
               </span>
             )}
           </>
@@ -129,7 +129,7 @@ const AdminPanel = () => {
         {/* City selector */}
         <div style={a.panel}>
           <div style={a.panelTitle}>
-            🏙️ Cities <span style={a.hint}>(empty = all {CITIES.length})</span>
+             Cities <span style={a.hint}>(empty = all {CITIES.length})</span>
           </div>
           <div style={a.chips}>
             {CITIES.map((c) => (
@@ -153,7 +153,7 @@ const AdminPanel = () => {
         {/* Role selector */}
         <div style={a.panel}>
           <div style={a.panelTitle}>
-            💼 Roles <span style={a.hint}>(empty = all {ROLES.length})</span>
+             Roles <span style={a.hint}>(empty = all {ROLES.length})</span>
           </div>
           <div style={a.chips}>
             {ROLES.map((r) => (
@@ -181,12 +181,12 @@ const AdminPanel = () => {
         disabled={status?.running || polling}
         onClick={startScraper}
       >
-        {status?.running ? "⏳ Scraping in progress…" : "🚀 Start Scraper"}
+        {status?.running ? "Scraping in progress…" : "Start Scraper"}
       </button>
 
       {/* Log output */}
       <div style={a.logBox}>
-        <div style={a.logTitle}>📋 Activity Log</div>
+        <div style={a.logTitle}> Activity Log</div>
         {log.length === 0 ? (
           <p style={a.logEmpty}>No activity yet. Start the scraper above.</p>
         ) : (

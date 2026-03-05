@@ -18,9 +18,9 @@ async def connect_db():
         # Verify connection
         await client.admin.command("ping")
         db = client.get_default_database(default="mernapp")
-        print("✅ MongoDB Connected")
+        print("MongoDB Connected")
     except Exception as e:
-        print(f"❌ MongoDB connection error: {e}")
+        print(f"MongoDB connection error: {e}")
         sys.exit(1)
 
 

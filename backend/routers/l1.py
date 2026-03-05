@@ -250,7 +250,7 @@ async def vulnerability_index(
     window: int = Query(30),
 ):
     """
-    Returns AI Vulnerability Index per city × role.
+    Returns AI Vulnerability Index per city x role.
     Score = weighted combo of:
       - hiring decline % (last window vs prev window)
       - AI tool mention rate

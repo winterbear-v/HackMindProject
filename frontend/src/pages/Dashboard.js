@@ -4,12 +4,14 @@ import TrendsTab from "../components/l1/TrendsTab";
 import SkillsTab from "../components/l1/SkillsTab";
 import VulnerabilityTab from "../components/l1/VulnerabilityTab";
 import AdminPanel from "../components/l1/AdminPanel";
+import WorkerPage from "./WorkerPage";
 
 const TABS = [
-  { id: "trends", label: "📈 Hiring Trends" },
-  { id: "skills", label: "🛠️ Skill Trends" },
-  { id: "vuln", label: "⚠️ Vulnerability" },
-  { id: "admin", label: "⚙️ Admin / Scraper" },
+  { id: "trends", label: "Hiring Trends" },
+  { id: "skills", label: "Skill Trends" },
+  { id: "vuln", label: "Vulnerability" },
+  { id: "worker", label: "My Risk & Plan" },
+  { id: "admin", label: "Admin / Scraper" },
 ];
 
 const Dashboard = () => {
@@ -19,14 +21,14 @@ const Dashboard = () => {
   return (
     <div style={d.page}>
       <div style={d.container}>
-        {/* Header */}
         <div style={d.header}>
           <div>
             <h1 style={d.title}>
-              SkillsMirage <span style={d.l1Tag}>L1 Dashboard</span>
+              SkillsMirage <span style={d.l1Tag}>Dashboard</span>
             </h1>
             <p style={d.sub}>
-              Live Indian job market intelligence — scraping Naukri & LinkedIn
+              Live Indian job market intelligence + AI displacement risk
+              analysis
             </p>
           </div>
           <div style={d.userBadge}>
@@ -38,7 +40,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Tab bar */}
         <div style={d.tabBar}>
           {TABS.map((tab) => (
             <button
@@ -51,11 +52,11 @@ const Dashboard = () => {
           ))}
         </div>
 
-        {/* Tab content */}
         <div style={d.content}>
           {activeTab === "trends" && <TrendsTab />}
           {activeTab === "skills" && <SkillsTab />}
           {activeTab === "vuln" && <VulnerabilityTab />}
+          {activeTab === "worker" && <WorkerPage />}
           {activeTab === "admin" && <AdminPanel />}
         </div>
       </div>

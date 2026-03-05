@@ -433,4 +433,4 @@ async def run_aggregator():
 
     # Ensure indexes on aggregates
     await db.aggregates.create_index([("city", 1), ("role_norm", 1), ("date", 1)])
-    print("✅ Aggregation complete")
+    print("Aggregation complete")

@@ -112,7 +112,7 @@ const SkillsTab = () => {
         <div style={sr.grid}>
           <div style={sr.panel}>
             <h3 style={{ ...sr.panelTitle, color: "#4ec9b0" }}>
-              📈 Rising Skills
+              Rising Skills
             </h3>
             {data.rising.length === 0 ? (
               <p style={sr.empty}>No data yet</p>
@@ -124,7 +124,7 @@ const SkillsTab = () => {
           </div>
           <div style={sr.panel}>
             <h3 style={{ ...sr.panelTitle, color: "#ff6b6b" }}>
-              📉 Declining Skills
+             Declining Skills
             </h3>
             {data.declining.length === 0 ? (
               <p style={sr.empty}>No data yet</p>
@@ -139,7 +139,7 @@ const SkillsTab = () => {
 
       {data && (
         <p style={sr.note}>
-          ⓘ Week-over-week change based on skill mentions in job descriptions
+          Week-over-week change based on skill mentions in job descriptions
           scraped from Naukri & LinkedIn.
         </p>
       )}
