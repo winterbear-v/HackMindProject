@@ -1,73 +1,91 @@
 import { useState, useRef, useEffect } from "react";
 import axios from "axios";
 
-const JUDGE_QUESTIONS = [
-  {
-    en: "Why is my risk score so high?",
-    hi: "मेरा जोखिम स्कोर इतना अधिक क्यों है?",
-  },
-  {
-    en: "What are the best roles for me to transition to?",
-    hi: "मेरे लिए सबसे अच्छे करियर विकल्प कौन से हैं?",
-  },
-  {
-    en: "How long will my reskilling take?",
-    hi: "मेरी री-स्किलिंग में कितना समय लगेगा?",
-  },
-  {
-    en: "Which free courses should I start with?",
-    hi: "मुझे कौन से मुफ्त कोर्स से शुरुआत करनी चाहिए?",
-  },
-  {
-    en: "Is AI replacing my job in the next 2 years?",
-    hi: "क्या AI अगले 2 साल में मेरी नौकरी ले लेगा?",
-  },
-];
+// All 5 required question types from the PPT spec
+const QUESTIONS = {
+  en: [
+    {
+      label: "Why high risk?",
+      text: "Why is my risk score so high? Cite specific signals.",
+    },
+    {
+      label: "Safer jobs for me",
+      text: "What jobs are safer for someone like me in my city?",
+    },
+    {
+      label: "Paths < 3 months",
+      text: "Show me reskilling paths that take less than 3 months.",
+    },
+    {
+      label: "Live job count",
+      text: "How many BPO jobs are available in my city right now?",
+    },
+    {
+      label: "NPTEL recognition",
+      text: "Is an NPTEL certification recognised by employers in India?",
+    },
+  ],
+  hi: [
+    {
+      label: "जोखिम क्यों अधिक?",
+      text: "मेरा जोखिम स्कोर इतना अधिक क्यों है?",
+    },
+    {
+      label: "मेरे लिए सुरक्षित काम",
+      text: "मेरे जैसे व्यक्ति के लिए कौन सी नौकरियाँ सुरक्षित हैं?",
+    },
+    {
+      label: "3 महीने से कम रास्ता",
+      text: "3 महीने से कम समय में कौन से रास्ते हैं?",
+    },
+    { label: "अभी नौकरियाँ", text: "मेरे शहर में अभी कितनी BPO नौकरियाँ हैं?" },
+    { label: "कहाँ से शुरू करूँ?", text: "मुझे कहाँ से शुरू करना चाहिए?" },
+  ],
+};
 
 const ChatbotModal = ({ profileId, onClose }) => {
-  const [messages, setMessages] = useState([
+  const [msgs, setMsgs] = useState([
     {
       role: "assistant",
-      text: "Hello! I'm your SkillsMirage career advisor. Ask me anything about your risk score, reskilling path, or job market trends. You can also ask in Hindi — मैं हिंदी में भी जवाब दे सकता हूँ।",
+      text: "👋 Hello! I'm your SkillsMirage AI Advisor — powered by live job market data.\n\nAsk me anything about your risk score, safer career options, reskilling paths, or live job counts.\n\nमैं हिंदी में भी जवाब दे सकता हूँ — बस हिंदी में पूछें।",
       citations: [],
     },
   ]);
   const [input, setInput] = useState("");
-  const [language, setLanguage] = useState("en");
+  const [lang, setLang] = useState("en");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [msgs]);
 
-  const send = async (question) => {
-    const q = question || input.trim();
-    if (!q || loading) return;
+  const send = async (q) => {
+    const question = q || input.trim();
+    if (!question || loading) return;
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", text: q }]);
+    setMsgs((p) => [...p, { role: "user", text: question }]);
     setLoading(true);
-
     try {
       const res = await axios.post("/api/l2/chat", {
         profile_id: profileId,
-        question: q,
-        language,
+        question,
+        language: lang,
       });
       const { answer, citations } = res.data.data;
-      setMessages((prev) => [
-        ...prev,
+      setMsgs((p) => [
+        ...p,
         { role: "assistant", text: answer, citations: citations || [] },
       ]);
     } catch (e) {
-      setMessages((prev) => [
-        ...prev,
+      setMsgs((p) => [
+        ...p,
         {
           role: "assistant",
           text:
-            " " +
+            "❌ " +
             (e.response?.data?.message ||
-              "Failed to get response. Check ANTHROPIC_API_KEY in .env"),
+              "API error. Check GROQ_API_KEY or ANTHROPIC_API_KEY in backend/.env"),
           citations: [],
         },
       ]);
@@ -83,30 +101,24 @@ const ChatbotModal = ({ profileId, onClose }) => {
     >
       <div style={c.modal}>
         {/* Header */}
-        <div style={c.header}>
+        <div style={c.hdr}>
           <div>
-            <div style={c.headerTitle}>SkillsMirage AI Advisor</div>
-            <div style={c.headerSub}>
-              Powered by Claude · Context-aware · Bilingual EN/HI
+            <div style={c.hdrTitle}>🤖 SkillsMirage AI Advisor</div>
+            <div style={c.hdrSub}>
+              Live L1 data · 5 question types · EN + HI
             </div>
           </div>
-          <div style={c.headerRight}>
+          <div style={c.hdrRight}>
             <div style={c.langToggle}>
               <button
-                style={{
-                  ...c.langBtn,
-                  ...(language === "en" ? c.langActive : {}),
-                }}
-                onClick={() => setLanguage("en")}
+                style={{ ...c.langBtn, ...(lang === "en" ? c.langOn : {}) }}
+                onClick={() => setLang("en")}
               >
                 EN
               </button>
               <button
-                style={{
-                  ...c.langBtn,
-                  ...(language === "hi" ? c.langActive : {}),
-                }}
-                onClick={() => setLanguage("hi")}
+                style={{ ...c.langBtn, ...(lang === "hi" ? c.langOn : {}) }}
+                onClick={() => setLang("hi")}
               >
                 हि
               </button>
@@ -117,25 +129,23 @@ const ChatbotModal = ({ profileId, onClose }) => {
           </div>
         </div>
 
-        {/* Quick question buttons */}
+        {/* 5 Quick Questions */}
         <div style={c.quickWrap}>
-          <div style={c.quickLabel}>Quick questions:</div>
-          <div style={c.quickBtns}>
-            {JUDGE_QUESTIONS.map((q, i) => (
-              <button
-                key={i}
-                style={c.quickBtn}
-                onClick={() => send(language === "hi" ? q.hi : q.en)}
-              >
-                {language === "hi" ? q.hi : q.en}
+          <div style={c.quickLabel}>
+            {lang === "hi" ? "त्वरित प्रश्न:" : "5 Question types (PPT spec):"}
+          </div>
+          <div style={c.quickRow}>
+            {QUESTIONS[lang].map((q, i) => (
+              <button key={i} style={c.qBtn} onClick={() => send(q.text)}>
+                {q.label}
               </button>
             ))}
           </div>
         </div>
 
         {/* Messages */}
-        <div style={c.messages}>
-          {messages.map((m, i) => (
+        <div style={c.msgs}>
+          {msgs.map((m, i) => (
             <div
               key={i}
               style={{
@@ -143,6 +153,7 @@ const ChatbotModal = ({ profileId, onClose }) => {
                 justifyContent: m.role === "user" ? "flex-end" : "flex-start",
               }}
             >
+              {m.role === "assistant" && <div style={c.avatar}>AI</div>}
               <div
                 style={{
                   ...c.bubble,
@@ -151,14 +162,14 @@ const ChatbotModal = ({ profileId, onClose }) => {
               >
                 <div style={c.msgText}>{m.text}</div>
                 {m.citations?.length > 0 && (
-                  <div style={c.citations}>
-                    <div style={c.citLabel}>Evidence used:</div>
-                    {m.citations.map((cit, ci) => (
+                  <div style={c.cits}>
+                    <div style={c.citLabel}>📊 L1 Evidence cited:</div>
+                    {m.citations.map((ct, ci) => (
                       <div key={ci} style={c.citRow}>
-                        <span style={c.citTag}>{cit.id}</span>
+                        <span style={c.citTag}>{ct.id}</span>
                         <span style={c.citText}>
-                          {cit.city} — {cit.role} — {cit.date} (
-                          {cit.posting_count} postings)
+                          {ct.city} — {ct.role} — {ct.date} ({ct.posting_count}{" "}
+                          postings)
                         </span>
                       </div>
                     ))}
@@ -169,11 +180,15 @@ const ChatbotModal = ({ profileId, onClose }) => {
           ))}
           {loading && (
             <div style={{ ...c.msgWrap, justifyContent: "flex-start" }}>
+              <div style={c.avatar}>AI</div>
               <div style={{ ...c.bubble, ...c.aiBubble }}>
                 <div style={c.typing}>
-                  <span style={c.dot} />
-                  <span style={{ ...c.dot, animationDelay: "0.2s" }} />
-                  <span style={{ ...c.dot, animationDelay: "0.4s" }} />
+                  {[0, 0.2, 0.4].map((d, i) => (
+                    <div
+                      key={i}
+                      style={{ ...c.dot, animationDelay: `${d}s` }}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
@@ -189,14 +204,14 @@ const ChatbotModal = ({ profileId, onClose }) => {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
             placeholder={
-              language === "hi"
-                ? "अपना सवाल यहाँ लिखें…"
-                : "Ask about your risk, career path, or courses…"
+              lang === "hi"
+                ? "हिंदी या English में पूछें…"
+                : "Ask about risk, jobs, courses, or salary…"
             }
             disabled={loading}
           />
           <button
-            style={{ ...c.sendBtn, ...(loading ? c.sendDisabled : {}) }}
+            style={{ ...c.sendBtn, ...(loading ? c.sendOff : {}) }}
             onClick={() => send()}
             disabled={loading}
           >
@@ -204,9 +219,8 @@ const ChatbotModal = ({ profileId, onClose }) => {
           </button>
         </div>
       </div>
-
       <style>{`
-        @keyframes bounce { 0%,80%,100%{transform:scale(0)} 40%{transform:scale(1)} }
+        @keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
       `}</style>
     </div>
   );
@@ -216,7 +230,7 @@ const c = {
   overlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(0,0,0,0.7)",
+    background: "rgba(0,0,0,0.75)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -228,13 +242,13 @@ const c = {
     border: "1px solid #2a2a4a",
     borderRadius: "14px",
     width: "100%",
-    maxWidth: "700px",
+    maxWidth: "720px",
     maxHeight: "90vh",
     display: "flex",
     flexDirection: "column",
     overflow: "hidden",
   },
-  header: {
+  hdr: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
@@ -242,9 +256,9 @@ const c = {
     borderBottom: "1px solid #2a2a4a",
     flexShrink: 0,
   },
-  headerTitle: { color: "#fff", fontWeight: 700, fontSize: "1rem" },
-  headerSub: { color: "#606080", fontSize: "0.75rem", marginTop: "0.15rem" },
-  headerRight: { display: "flex", gap: "0.5rem", alignItems: "center" },
+  hdrTitle: { color: "#fff", fontWeight: 700, fontSize: "1rem" },
+  hdrSub: { color: "#606080", fontSize: "0.72rem", marginTop: "0.15rem" },
+  hdrRight: { display: "flex", gap: "0.5rem", alignItems: "center" },
   langToggle: {
     display: "flex",
     background: "#1a1a2e",
@@ -253,14 +267,14 @@ const c = {
     border: "1px solid #2a2a4a",
   },
   langBtn: {
-    padding: "0.3rem 0.7rem",
+    padding: "0.3rem 0.75rem",
     background: "transparent",
     color: "#a0a0b0",
     border: "none",
     cursor: "pointer",
-    fontSize: "0.8rem",
+    fontSize: "0.82rem",
   },
-  langActive: { background: "#e94560", color: "#fff" },
+  langOn: { background: "#e94560", color: "#fff" },
   closeBtn: {
     background: "transparent",
     color: "#a0a0b0",
@@ -270,22 +284,23 @@ const c = {
     padding: "0.2rem 0.4rem",
   },
   quickWrap: {
-    padding: "0.75rem 1.25rem",
+    padding: "0.65rem 1.25rem",
     borderBottom: "1px solid #2a2a4a",
     flexShrink: 0,
   },
-  quickLabel: { color: "#606080", fontSize: "0.72rem", marginBottom: "0.4rem" },
-  quickBtns: { display: "flex", gap: "0.4rem", flexWrap: "wrap" },
-  quickBtn: {
+  quickLabel: { color: "#606080", fontSize: "0.7rem", marginBottom: "0.4rem" },
+  quickRow: { display: "flex", gap: "0.4rem", flexWrap: "wrap" },
+  qBtn: {
     background: "#1a1a2e",
-    color: "#a0a0b0",
+    color: "#c0c0d0",
     border: "1px solid #2a2a4a",
     borderRadius: "4px",
-    padding: "0.25rem 0.6rem",
+    padding: "0.25rem 0.65rem",
     cursor: "pointer",
-    fontSize: "0.72rem",
+    fontSize: "0.73rem",
+    transition: "all 0.15s",
   },
-  messages: {
+  msgs: {
     flex: 1,
     overflowY: "auto",
     padding: "1rem 1.25rem",
@@ -293,8 +308,21 @@ const c = {
     flexDirection: "column",
     gap: "0.75rem",
   },
-  msgWrap: { display: "flex" },
-  bubble: { maxWidth: "85%", borderRadius: "10px", padding: "0.75rem 1rem" },
+  msgWrap: { display: "flex", gap: "0.5rem", alignItems: "flex-end" },
+  avatar: {
+    width: "28px",
+    height: "28px",
+    borderRadius: "50%",
+    background: "#e94560",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "0.65rem",
+    fontWeight: 700,
+    color: "#fff",
+    flexShrink: 0,
+  },
+  bubble: { maxWidth: "82%", borderRadius: "10px", padding: "0.75rem 1rem" },
   userBubble: {
     background: "#e94560",
     color: "#fff",
@@ -306,8 +334,8 @@ const c = {
     borderBottomLeftRadius: "2px",
     border: "1px solid #2a2a4a",
   },
-  msgText: { fontSize: "0.88rem", lineHeight: 1.6, whiteSpace: "pre-wrap" },
-  citations: {
+  msgText: { fontSize: "0.875rem", lineHeight: 1.65, whiteSpace: "pre-wrap" },
+  cits: {
     marginTop: "0.6rem",
     paddingTop: "0.5rem",
     borderTop: "1px solid #2a2a4a",
@@ -327,7 +355,6 @@ const c = {
     height: "8px",
     borderRadius: "50%",
     background: "#e94560",
-    display: "inline-block",
     animation: "bounce 1.2s infinite ease-in-out",
   },
   inputRow: {
@@ -355,7 +382,7 @@ const c = {
     cursor: "pointer",
     fontSize: "1rem",
   },
-  sendDisabled: { background: "#555", cursor: "not-allowed" },
+  sendOff: { background: "#555", cursor: "not-allowed" },
 };
 
 export default ChatbotModal;

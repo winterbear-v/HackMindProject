@@ -250,7 +250,7 @@ async def vulnerability_index(
     window: int = Query(30),
 ):
     """
-    Returns AI Vulnerability Index per city x role.
+    Returns AI Vulnerability Index per city × role.
     Score = weighted combo of:
       - hiring decline % (last window vs prev window)
       - AI tool mention rate
@@ -366,3 +366,140 @@ async def list_jobs(
         "limit": limit,
         "data": jobs,
     }
+
+
+# ────────────────────────────────────────────────────────────
+# Early Warning Watchlist (Bonus Feature)
+# ────────────────────────────────────────────────────────────
+
+@router.get("/early-warning")
+async def early_warning(threshold: float = Query(15.0, description="Min % weekly decline to flag")):
+    """
+    Flags city×role combinations where hiring is declining fast enough
+    to warrant proactive reskilling outreach — BEFORE layoffs begin.
+    """
+    db = get_db()
+    now = datetime.now(timezone.utc)
+    this_week = (now - timedelta(days=7)).strftime("%Y-%m-%d")
+    last_week_start = (now - timedelta(days=14)).strftime("%Y-%m-%d")
+
+    curr_pipe = [
+        {"$match": {"date": {"$gte": this_week}}},
+        {"$group": {"_id": {"city":"$city","role":"$role_norm"},
+                    "curr": {"$sum":"$posting_count"},
+                    "ai_rate": {"$avg":"$ai_tool_mention_rate"}}},
+    ]
+    prev_pipe = [
+        {"$match": {"date": {"$gte": last_week_start, "$lt": this_week}}},
+        {"$group": {"_id": {"city":"$city","role":"$role_norm"},
+                    "prev": {"$sum":"$posting_count"}}},
+    ]
+    curr_docs = {f"{d['_id']['city']}|{d['_id']['role']}": d
+                 for d in await db.aggregates.aggregate(curr_pipe).to_list(None)}
+    prev_docs = {f"{d['_id']['city']}|{d['_id']['role']}": d
+                 for d in await db.aggregates.aggregate(prev_pipe).to_list(None)}
+
+    warnings = []
+    for key, curr in curr_docs.items():
+        prev  = prev_docs.get(key, {})
+        city, role = key.split("|", 1)
+        curr_count = curr["curr"]
+        prev_count = prev.get("prev", curr_count)
+        if prev_count > 0:
+            decline_pct = (prev_count - curr_count) / prev_count * 100
+        else:
+            decline_pct = 0
+        if decline_pct >= threshold:
+            warnings.append({
+                "city": city,
+                "role": role,
+                "decline_pct": round(decline_pct, 1),
+                "curr_postings": curr_count,
+                "prev_postings": prev_count,
+                "ai_rate": round(curr.get("ai_rate", 0) * 100, 1),
+                "severity": "CRITICAL" if decline_pct >= 30 else "HIGH" if decline_pct >= 20 else "WATCH",
+            })
+
+    warnings.sort(key=lambda x: -x["decline_pct"])
+    return {"success": True, "data": {"warnings": warnings, "threshold_pct": threshold}}
+
+
+# ────────────────────────────────────────────────────────────
+# Employer-Side View (Bonus Feature)
+# ────────────────────────────────────────────────────────────
+
+@router.get("/employer-gap")
+async def employer_gap(city: Optional[str] = Query(None)):
+    """
+    Shows the supply/demand gap per city+role:
+    what skills workers have (supply) vs what employers are hiring for (demand).
+    """
+    from scraper.job_scraper import PMKVY_TRAINED_SKILLS
+    db = get_db()
+    now = datetime.now(timezone.utc)
+    since = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+
+    match = {"date": {"$gte": since}}
+    if city:
+        match["city"] = city
+
+    pipeline = [
+        {"$match": match},
+        {"$unwind": "$top_skills"},
+        {"$group": {
+            "_id": {"city":"$city","role":"$role_norm","skill":"$top_skills.skill"},
+            "demand": {"$sum": "$top_skills.count"},
+        }},
+        {"$sort": {"demand": -1}},
+    ]
+
+    docs = await db.aggregates.aggregate(pipeline).to_list(None)
+
+    # Group by city+role
+    grouped = {}
+    for d in docs:
+        key  = f"{d['_id']['city']}|{d['_id']['role']}"
+        skill = d["_id"]["skill"]
+        grouped.setdefault(key, []).append({"skill": skill, "demand": d["demand"]})
+
+    results = []
+    for key, skills in grouped.items():
+        city_name, role = key.split("|", 1)
+        in_demand  = [s["skill"] for s in skills[:8]]
+        supply     = [s for s in in_demand if s in PMKVY_TRAINED_SKILLS]
+        gap        = [s for s in in_demand if s not in PMKVY_TRAINED_SKILLS]
+        gap_score  = round(len(gap) / len(in_demand) * 100) if in_demand else 0
+        results.append({
+            "city": city_name, "role": role,
+            "top_demanded_skills": in_demand,
+            "pmkvy_covered": supply,
+            "skill_gap": gap,
+            "gap_score": gap_score,
+        })
+
+    results.sort(key=lambda x: -x["gap_score"])
+    return {"success": True, "data": results}
+
+
+# ────────────────────────────────────────────────────────────
+# Live job count (for chatbot "how many BPO jobs in Indore?")
+# ────────────────────────────────────────────────────────────
+
+@router.get("/live-count")
+async def live_count(
+    city: Optional[str] = Query(None),
+    role: Optional[str] = Query(None),
+    days: int = Query(30),
+):
+    db = get_db()
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
+    match: dict = {"date": {"$gte": since}}
+    if city: match["city"] = city
+    if role: match["role_norm"] = role
+    pipeline = [
+        {"$match": match},
+        {"$group": {"_id": None, "total": {"$sum": "$posting_count"}}},
+    ]
+    res = await db.aggregates.aggregate(pipeline).to_list(1)
+    total = res[0]["total"] if res else 0
+    return {"success": True, "data": {"city": city, "role": role, "days": days, "count": total}}
