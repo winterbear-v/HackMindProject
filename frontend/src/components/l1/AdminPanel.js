@@ -108,20 +108,20 @@ const AdminPanel = () => {
         {status && (
           <>
             <span style={a.stat}>
-               {status.total_job_posts.toLocaleString()} job posts
+              {status.total_job_posts.toLocaleString()} job posts
             </span>
             <span style={a.stat}>
-               {status.total_aggregates.toLocaleString()} aggregates
+              {status.total_aggregates.toLocaleString()} aggregates
             </span>
             {status.last_run && (
               <span style={a.stat}>
-                 Last run: {new Date(status.last_run).toLocaleString()}
+                Last run: {new Date(status.last_run).toLocaleString()}
               </span>
             )}
           </>
         )}
         <button style={a.refreshBtn} onClick={fetchStatus}>
-          ↻ Refresh
+          Refresh
         </button>
       </div>
 
@@ -129,7 +129,7 @@ const AdminPanel = () => {
         {/* City selector */}
         <div style={a.panel}>
           <div style={a.panelTitle}>
-             Cities <span style={a.hint}>(empty = all {CITIES.length})</span>
+            Cities <span style={a.hint}>(empty = all {CITIES.length})</span>
           </div>
           <div style={a.chips}>
             {CITIES.map((c) => (
@@ -153,7 +153,7 @@ const AdminPanel = () => {
         {/* Role selector */}
         <div style={a.panel}>
           <div style={a.panelTitle}>
-             Roles <span style={a.hint}>(empty = all {ROLES.length})</span>
+            Roles <span style={a.hint}>(empty = all {ROLES.length})</span>
           </div>
           <div style={a.chips}>
             {ROLES.map((r) => (

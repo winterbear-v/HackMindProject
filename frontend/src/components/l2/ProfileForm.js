@@ -73,7 +73,7 @@ const ProfileForm = ({ onSubmit }) => {
   return (
     <div style={f.wrap}>
       <div style={f.header}>
-        <h2 style={f.title}>👤 Worker Profile</h2>
+        <h2 style={f.title}>Worker Profile</h2>
         <button style={f.sampleBtn} onClick={loadSample}>
           Load Sample Profile
         </button>

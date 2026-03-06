@@ -45,7 +45,7 @@ const EmployerGap = () => {
     <div>
       <div style={e.header}>
         <div>
-          <div style={e.title}>🏢 Employer-Side View</div>
+          <div style={e.title}>Employer-Side View</div>
           <div style={e.sub}>
             Supply vs Demand gap — what's being hired vs what PMKVY/SWAYAM
             trains for
@@ -71,7 +71,7 @@ const EmployerGap = () => {
 
       {!loading && data.length === 0 && (
         <div style={e.empty}>
-          <div style={{ fontSize: "2rem" }}>🏢</div>
+          <div style={{ fontSize: "2rem" }}></div>
           <div
             style={{
               color: "#fff",
@@ -142,7 +142,7 @@ const EmployerGap = () => {
 
                   {/* Demand skills */}
                   <div style={e.skillSection}>
-                    <div style={e.sLabel}>📋 Employers want</div>
+                    <div style={e.sLabel}>Employers want</div>
                     <div style={e.chips}>
                       {row.top_demanded_skills.map((sk) => {
                         const covered = row.pmkvy_covered.includes(sk);
@@ -168,7 +168,7 @@ const EmployerGap = () => {
                   {row.skill_gap.length > 0 && (
                     <div style={e.skillSection}>
                       <div style={{ ...e.sLabel, color: "#ff9900" }}>
-                        ⚠️ Not trained by PMKVY/SWAYAM
+                        Not trained by PMKVY/SWAYAM
                       </div>
                       <div style={e.chips}>
                         {row.skill_gap.map((sk) => (

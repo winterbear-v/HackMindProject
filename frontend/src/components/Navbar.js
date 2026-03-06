@@ -13,7 +13,7 @@ const Navbar = () => {
   return (
     <nav style={n.nav}>
       <Link to="/" style={n.brand}>
-        <span style={n.brandIcon}>◈</span> CareerCraft AI
+        <span style={n.brandIcon}></span> CareerCraft AI
       </Link>
       <div style={n.links}>
         {user ? (

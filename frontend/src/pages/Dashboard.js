@@ -9,13 +9,13 @@ import AdminPanel from "../components/l1/AdminPanel";
 import WorkerPage from "./WorkerPage";
 
 const TABS = [
-  { id: "trends", label: "📈 Hiring Trends", group: "L1" },
-  { id: "skills", label: "🛠️ Skills Intel", group: "L1" },
-  { id: "vuln", label: "⚠️ Vulnerability Index", group: "L1" },
-  { id: "warning", label: "🚨 Early Warning", group: "L1", bonus: true },
-  { id: "employer", label: "🏢 Employer Gap", group: "L1", bonus: true },
-  { id: "worker", label: "👤 My Risk & Plan", group: "L2" },
-  { id: "admin", label: "⚙️ Scraper", group: "admin" },
+  { id: "trends", label: "Hiring Trends", group: "L1" },
+  { id: "skills", label: "Skills Intel", group: "L1" },
+  { id: "vuln", label: "Vulnerability Index", group: "L1" },
+  { id: "warning", label: "Early Warning", group: "L1", bonus: true },
+  { id: "employer", label: "Employer Gap", group: "L1", bonus: true },
+  { id: "worker", label: "My Risk & Plan", group: "L2" },
+  { id: "admin", label: "Scraper", group: "admin" },
 ];
 
 const Dashboard = () => {
@@ -89,16 +89,6 @@ const Dashboard = () => {
           {activeTab === "employer" && <EmployerGap />}
           {activeTab === "worker" && <WorkerPage />}
           {activeTab === "admin" && <AdminPanel />}
-        </div>
-
-        {/* L1→L2 integration note */}
-        <div style={d.integNote}>
-          <span style={d.integIcon}>🔗</span>
-          <span>
-            <b style={{ color: "#fff" }}>L1 → L2 live feed:</b> Risk scores
-            recompute from fresh L1 data every time you click "Analyse My Risk".
-            Run scraper → re-score to see scores update.
-          </span>
         </div>
       </div>
     </div>

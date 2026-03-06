@@ -47,7 +47,7 @@ const ChatbotModal = ({ profileId, onClose }) => {
   const [msgs, setMsgs] = useState([
     {
       role: "assistant",
-      text: "👋 Hello! I'm your SkillsMirage AI Advisor — powered by live job market data.\n\nAsk me anything about your risk score, safer career options, reskilling paths, or live job counts.\n\nमैं हिंदी में भी जवाब दे सकता हूँ — बस हिंदी में पूछें।",
+      text: "Hello! I'm your SkillsMirage AI Advisor — powered by live job market data.\n\nAsk me anything about your risk score, safer career options, reskilling paths, or live job counts.\n\nमैं हिंदी में भी जवाब दे सकता हूँ — बस हिंदी में पूछें।",
       citations: [],
     },
   ]);
@@ -83,9 +83,8 @@ const ChatbotModal = ({ profileId, onClose }) => {
         {
           role: "assistant",
           text:
-            "❌ " +
-            (e.response?.data?.message ||
-              "API error. Check GROQ_API_KEY or ANTHROPIC_API_KEY in backend/.env"),
+            e.response?.data?.message ||
+            "API error. Check GROQ_API_KEY or ANTHROPIC_API_KEY in backend/.env",
           citations: [],
         },
       ]);
@@ -103,7 +102,7 @@ const ChatbotModal = ({ profileId, onClose }) => {
         {/* Header */}
         <div style={c.hdr}>
           <div>
-            <div style={c.hdrTitle}>🤖 SkillsMirage AI Advisor</div>
+            <div style={c.hdrTitle}>SkillsMirage AI Advisor</div>
             <div style={c.hdrSub}>
               Live L1 data · 5 question types · EN + HI
             </div>
@@ -163,7 +162,7 @@ const ChatbotModal = ({ profileId, onClose }) => {
                 <div style={c.msgText}>{m.text}</div>
                 {m.citations?.length > 0 && (
                   <div style={c.cits}>
-                    <div style={c.citLabel}>📊 L1 Evidence cited:</div>
+                    <div style={c.citLabel}>L1 Evidence cited:</div>
                     {m.citations.map((ct, ci) => (
                       <div key={ci} style={c.citRow}>
                         <span style={c.citTag}>{ct.id}</span>

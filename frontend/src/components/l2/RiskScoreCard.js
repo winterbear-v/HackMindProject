@@ -23,7 +23,7 @@ const RiskScoreCard = ({ profileId, initialResult, onScored }) => {
   if (!result && !loading)
     return (
       <div style={s.empty}>
-        <div style={s.emptyIcon}>⚡</div>
+        <div style={s.emptyIcon}></div>
         <div style={s.emptyText}>Compute your AI displacement risk score</div>
         <div style={s.emptySub}>
           Uses live L1 job market signals for your city and role
@@ -236,7 +236,7 @@ const RiskScoreCard = ({ profileId, initialResult, onScored }) => {
           signals)
         </button>
         <button style={s.recomputeBtn} onClick={recompute} disabled={loading}>
-          ↻ Recompute from live L1
+          Recompute from live L1
         </button>
       </div>
 

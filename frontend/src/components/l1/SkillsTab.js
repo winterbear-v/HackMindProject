@@ -1,5 +1,24 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import axios from "axios";
+
+// ── Design tokens (aligned with HiringTrends) ─────────────────────────────────
+const C = {
+  bg: "#0d0f1a",
+  surface: "#13162a",
+  card: "#181c30",
+  border: "#252a42",
+  accent: "#f43f72",
+  accentDim: "rgba(244,63,114,0.18)",
+  teal: "#00d4b1",
+  tealDim: "rgba(0,212,177,0.15)",
+  amber: "#f0a500",
+  amberDim: "rgba(240,165,0,0.15)",
+  violet: "#a78bfa",
+  violetDim: "rgba(167,139,250,0.15)",
+  text: "#e2e8f0",
+  muted: "#6b7280",
+  grid: "#1f2640",
+};
 
 const CITIES = [
   "Bangalore",
@@ -26,23 +45,332 @@ const ROLES = [
   "Digital Marketing",
 ];
 
-const SkillsTab = () => {
+// ── Skill gap: PMKVY/SWAYAM trains for these ────────────────────────────────
+const GOVT_TRAINED = [
+  "excel",
+  "tally",
+  "accounting",
+  "data entry",
+  "typing",
+  "ms office",
+  "sap",
+  "communication",
+  "customer service",
+  "digital marketing",
+  "content writing",
+  "hr",
+  "sales",
+  "seo",
+  "crm",
+];
+
+// ── Micro bar (inline sparkline) ──────────────────────────────────────────────
+function MiniBar({ pct, color, height = 6 }) {
+  const w = useRef(null);
+  useEffect(() => {
+    if (!w.current) return;
+    w.current.style.width = "0%";
+    requestAnimationFrame(() => {
+      if (!w.current) return;
+      w.current.style.transition = "width 0.55s cubic-bezier(.4,0,.2,1)";
+      w.current.style.width = Math.max(pct, 2) + "%";
+    });
+  }, [pct]);
+  return (
+    <div
+      style={{
+        flex: 1,
+        height,
+        background: C.grid,
+        borderRadius: height / 2,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        ref={w}
+        style={{ height: "100%", background: color, borderRadius: height / 2 }}
+      />
+    </div>
+  );
+}
+
+// ── Skill row ─────────────────────────────────────────────────────────────────
+function SkillRow({
+  rank,
+  skill,
+  count,
+  maxCount,
+  pct,
+  color,
+  showRank,
+  govtTrained,
+}) {
+  const [hov, setHov] = useState(false);
+  const barPct = maxCount > 0 ? (count / maxCount) * 100 : 0;
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "4px 8px",
+        borderRadius: 6,
+        background: hov ? C.surface : "transparent",
+        transition: "background 0.15s",
+      }}
+    >
+      {showRank && (
+        <span
+          style={{
+            width: 22,
+            color: C.muted,
+            fontSize: 10,
+            fontFamily: "monospace",
+            flexShrink: 0,
+          }}
+        >
+          #{rank}
+        </span>
+      )}
+      <span
+        style={{
+          width: 120,
+          fontSize: 11,
+          color: C.text,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          flexShrink: 0,
+        }}
+        title={skill}
+      >
+        {skill}
+      </span>
+      {govtTrained !== undefined && (
+        <span
+          style={{
+            fontSize: 9,
+            padding: "1px 5px",
+            borderRadius: 3,
+            flexShrink: 0,
+            background: govtTrained ? C.tealDim : C.accentDim,
+            color: govtTrained ? C.teal : C.accent,
+            border: `1px solid ${
+              govtTrained ? C.teal + "44" : C.accent + "44"
+            }`,
+          }}
+        >
+          {govtTrained ? "GOV" : "GAP"}
+        </span>
+      )}
+      <MiniBar pct={barPct} color={color} />
+      <span
+        style={{
+          width: 44,
+          textAlign: "right",
+          fontSize: 11,
+          fontWeight: 700,
+          color,
+          fontFamily: "monospace",
+          flexShrink: 0,
+        }}
+      >
+        {count}
+      </span>
+      {pct !== undefined && (
+        <span
+          style={{
+            width: 50,
+            textAlign: "right",
+            fontSize: 10,
+            fontWeight: 600,
+            color,
+            fontFamily: "monospace",
+            flexShrink: 0,
+          }}
+        >
+          {pct > 0 ? "+" : ""}
+          {pct}%
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ── Gap Map card ──────────────────────────────────────────────────────────────
+function GapMap({ skills }) {
+  const top = [...skills]
+    .sort((a, b) => (b.this_week || 0) - (a.this_week || 0))
+    .slice(0, 14);
+  const maxC = Math.max(...top.map((s) => s.this_week || 0), 1);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      {top.map((sk) => {
+        const trained = GOVT_TRAINED.includes(
+          String(sk.skill || "").toLowerCase(),
+        );
+        const pct = ((sk.this_week || 0) / maxC) * 100;
+        return (
+          <div
+            key={sk.skill}
+            style={{ display: "flex", alignItems: "center", gap: 8 }}
+          >
+            <span
+              style={{
+                width: 110,
+                fontSize: 10,
+                color: C.text,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}
+              title={sk.skill}
+            >
+              {sk.skill}
+            </span>
+            <div
+              style={{
+                flex: 1,
+                height: 14,
+                background: C.grid,
+                borderRadius: 3,
+                overflow: "hidden",
+                position: "relative",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  borderRadius: 3,
+                  width: pct + "%",
+                  background: trained
+                    ? `linear-gradient(90deg, ${C.teal}, ${C.teal}88)`
+                    : `linear-gradient(90deg, ${C.accent}, ${C.accent}88)`,
+                  transition: "width 0.6s cubic-bezier(.4,0,.2,1)",
+                }}
+              />
+            </div>
+            <span
+              style={{
+                width: 34,
+                fontSize: 9,
+                fontWeight: 700,
+                textAlign: "right",
+                flexShrink: 0,
+                color: trained ? C.teal : C.accent,
+                fontFamily: "monospace",
+              }}
+            >
+              {sk.this_week || 0}
+            </span>
+          </div>
+        );
+      })}
+      <div style={{ display: "flex", gap: 16, marginTop: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <div
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 2,
+              background: C.teal,
+            }}
+          />
+          <span style={{ fontSize: 9, color: C.muted }}>
+            PMKVY/SWAYAM trains
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <div
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 2,
+              background: C.accent,
+            }}
+          />
+          <span style={{ fontSize: 9, color: C.muted }}>
+            Market demands — not trained
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Category chips ────────────────────────────────────────────────────────────
+const CATS = [
+  {
+    label: "Tech",
+    color: C.teal,
+    keys: [
+      "python",
+      "sql",
+      "java",
+      "javascript",
+      "react",
+      "aws",
+      "azure",
+      "power bi",
+      "tableau",
+      "machine learning",
+      "deep learning",
+      "nlp",
+      "cloud",
+      "kubernetes",
+      "git",
+    ],
+  },
+  {
+    label: "Office",
+    color: C.amber,
+    keys: [
+      "excel",
+      "ms office",
+      "tally",
+      "sap",
+      "crm",
+      "salesforce",
+      "accounting",
+    ],
+  },
+  {
+    label: "Soft",
+    color: C.violet,
+    keys: [
+      "communication",
+      "customer service",
+      "data entry",
+      "typing",
+      "sales",
+      "digital marketing",
+      "content writing",
+      "hr",
+      "seo",
+    ],
+  },
+];
+
+export default function SkillsTab() {
   const [city, setCity] = useState("");
   const [role, setRole] = useState("");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [tooltip, setTooltip] = useState(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const p = new URLSearchParams({ limit: 12 });
+      const p = new URLSearchParams({ limit: 20 });
       if (city) p.append("city", city);
       if (role) p.append("role", role);
       const res = await axios.get(`/api/l1/skills?${p}`);
-      setData(res.data.data);
+      setData(res.data?.data || null);
     } catch (e) {
       console.error(e);
+      setData(null);
     } finally {
       setLoading(false);
     }
@@ -50,513 +378,592 @@ const SkillsTab = () => {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [city, role]);
 
-  // When there's only 1 data point, rising = all skills sorted desc, declining = all sorted asc
-  const rising = data?.rising || [];
-  const declining = data?.declining || [];
+  const risingRaw = data?.rising || [];
+  const decliningRaw = data?.declining || [];
   const allSkills = [
-    ...new Map([...rising, ...declining].map((s) => [s.skill, s])).values(),
+    ...new Map(
+      [...risingRaw, ...decliningRaw].map((s) => [s.skill, s]),
+    ).values(),
   ];
-  const noWeeklyChange = allSkills.every((s) => s.delta === 0);
+  const noWeeklyChange =
+    allSkills.length > 0 && allSkills.every((s) => (s.delta || 0) === 0);
 
-  const maxVal = Math.max(
-    ...allSkills.map((s) => Math.max(s.this_week, s.last_week, 1)),
+  const topSkills = [...allSkills].sort(
+    (a, b) => (b.this_week || 0) - (a.this_week || 0),
+  );
+  const bottomSkills = [...allSkills]
+    .slice()
+    .sort((a, b) => (a.this_week || 0) - (b.this_week || 0));
+
+  const rising = noWeeklyChange
+    ? topSkills.slice(0, 12)
+    : risingRaw.slice(0, 12);
+  const declining = noWeeklyChange
+    ? bottomSkills.slice(0, 12)
+    : decliningRaw.slice(0, 12);
+
+  const showRising = rising.length > 0;
+  const showDeclining = declining.length > 0;
+  const showRight = allSkills.length > 0;
+
+  const maxR = Math.max(...rising.map((s) => s.this_week || 0), 1);
+  const maxD = Math.max(
+    ...declining.map((s) => (noWeeklyChange ? s.this_week : s.last_week) || 0),
     1,
   );
 
+  const topDemand = topSkills.slice(0, 12);
+  const gapSkills = topDemand.filter(
+    (s) => !GOVT_TRAINED.includes(String(s.skill || "").toLowerCase()),
+  );
+  const trainedSkills = topDemand.filter((s) =>
+    GOVT_TRAINED.includes(String(s.skill || "").toLowerCase()),
+  );
+  const gapPct = topDemand.length
+    ? Math.round((gapSkills.length / topDemand.length) * 100)
+    : 0;
+
+  const selectStyle = {
+    background: C.surface,
+    color: C.text,
+    border: `1px solid ${C.border}`,
+    borderRadius: 8,
+    padding: "6px 12px",
+    fontSize: 12,
+    cursor: "pointer",
+    outline: "none",
+    fontFamily: "inherit",
+  };
+  const btnStyle = {
+    background: "transparent",
+    color: C.muted,
+    border: `1px solid ${C.border}`,
+    borderRadius: 8,
+    padding: "6px 12px",
+    cursor: "pointer",
+    fontSize: 11,
+    fontFamily: "'JetBrains Mono', monospace",
+    transition: "color 0.15s, border-color 0.15s",
+  };
+
   return (
-    <div>
-      {/* Filters */}
-      <div style={s.row}>
+    <div
+      style={{
+        background: C.bg,
+        color: C.text,
+        fontFamily: "'IBM Plex Sans', 'Segoe UI', sans-serif",
+        padding: "16px",
+        boxSizing: "border-box",
+      }}
+    >
+      <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+      />
+
+      {/* ── Filters bar ── */}
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          alignItems: "center",
+          flexWrap: "wrap",
+          background: C.surface,
+          border: `1px solid ${C.border}`,
+          borderRadius: 10,
+          padding: "10px 14px",
+          marginBottom: 12,
+        }}
+      >
+        <div
+          style={{
+            color: C.muted,
+            fontSize: 10,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            marginRight: 4,
+          }}
+        >
+          Skills Intel
+        </div>
         <select
-          style={s.sel}
           value={city}
           onChange={(e) => setCity(e.target.value)}
+          style={selectStyle}
         >
           <option value="">All Cities</option>
           {CITIES.map((c) => (
-            <option key={c}>{c}</option>
+            <option key={c} value={c}>
+              {c}
+            </option>
           ))}
         </select>
         <select
-          style={s.sel}
           value={role}
           onChange={(e) => setRole(e.target.value)}
+          style={selectStyle}
         >
           <option value="">All Roles</option>
           {ROLES.map((r) => (
-            <option key={r}>{r}</option>
+            <option key={r} value={r}>
+              {r}
+            </option>
           ))}
         </select>
-        <button style={s.refresh} onClick={load}>
+        <button onClick={load} style={btnStyle}>
           ↻ Refresh
         </button>
-      </div>
-
-      {loading && (
-        <div style={s.center}>
-          <div style={s.spin} />
-          <span style={{ color: "#a0a0b0", marginLeft: "0.75rem" }}>
-            Loading skills…
-          </span>
-        </div>
-      )}
-
-      {!loading && allSkills.length === 0 && (
-        <div style={s.empty}>
-          <div style={{ fontSize: "2.5rem" }}>🛠️</div>
-          <div
+        {loading && (
+          <span
             style={{
-              color: "#fff",
-              fontWeight: 600,
-              margin: "0.5rem 0 0.25rem",
+              color: C.accent,
+              fontFamily: "monospace",
+              fontSize: 10,
             }}
           >
+            ● syncing…
+          </span>
+        )}
+
+        <div style={{ marginLeft: "auto", display: "flex", gap: 16 }}>
+          <div style={{ textAlign: "right" }}>
+            <div
+              style={{
+                fontSize: 10,
+                color: C.muted,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}
+            >
+              Skill Gap
+            </div>
+            <div
+              style={{
+                fontFamily: "monospace",
+                fontSize: 16,
+                fontWeight: 700,
+                color: C.accent,
+              }}
+            >
+              {gapPct}%
+            </div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div
+              style={{
+                fontSize: 10,
+                color: C.muted,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}
+            >
+              Skills Tracked
+            </div>
+            <div
+              style={{
+                fontFamily: "monospace",
+                fontSize: 16,
+                fontWeight: 700,
+                color: C.teal,
+              }}
+            >
+              {allSkills.length}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Empty state (keeps layout tight) */}
+      {!loading && allSkills.length === 0 && (
+        <div
+          style={{
+            textAlign: "center",
+            padding: "32px 16px",
+            background: C.card,
+            border: `1px dashed ${C.border}`,
+            borderRadius: 12,
+          }}
+        >
+          <div style={{ fontSize: 36 }}></div>
+          <div style={{ color: C.text, fontWeight: 700, marginTop: 8 }}>
             No skill data yet
           </div>
-          <div style={{ color: "#606080", fontSize: "0.85rem" }}>
-            Run the scraper from ⚙️ Admin tab first
+          <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>
+            Run the scraper from Admin tab first
           </div>
         </div>
       )}
 
-      {!loading && allSkills.length > 0 && (
+      {allSkills.length > 0 && (
         <>
-          {/* Single-run notice */}
           {noWeeklyChange && (
-            <div style={s.notice}>
-              ℹ️ Only one scraper run found — showing current skill frequency
-              ranked by count. Run the scraper again tomorrow to see
-              week-over-week changes.
+            <div
+              style={{
+                background: C.surface,
+                border: `1px solid ${C.border}`,
+                borderRadius: 10,
+                padding: "8px 10px",
+                color: C.muted,
+                fontSize: 11,
+                marginBottom: 12,
+              }}
+            >
+              ℹ️ Only one scraper run found — week-over-week change isn’t
+              available yet.
             </div>
           )}
 
-          {/* ── All Skills Ranked (single point) ── */}
-          {noWeeklyChange && (
-            <div style={s.card}>
-              <div style={s.cardTitle}>🛠️ Top Skills in Job Descriptions</div>
-              <div style={s.subTitle}>
-                Ranked by frequency across all scraped postings
+          {/* ── Row 1: Rising | Declining | Skill Gap Map — equal width, stretch to tallest ── */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 1fr",
+              gap: 12,
+              alignItems: "stretch",
+              marginBottom: 12,
+            }}
+          >
+            {/* Rising */}
+            {showRising && (
+              <div
+                style={{
+                  background: C.card,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 12,
+                  padding: "14px 14px 12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  borderTop: `2px solid ${C.teal}`,
+                }}
+              >
+                <div style={{ marginBottom: 10, flexShrink: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
+                    {noWeeklyChange ? "Top Skills" : "Rising Skills"}
+                  </div>
+                  <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>
+                    {city || "All Cities"} · {role || "All Roles"}
+                    {noWeeklyChange
+                      ? " · ranked by count"
+                      : " · week-over-week"}
+                  </div>
+                </div>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 1 }}
+                >
+                  {rising.map((sk, i) => (
+                    <SkillRow
+                      key={sk.skill}
+                      rank={i + 1}
+                      skill={sk.skill}
+                      count={sk.this_week || 0}
+                      maxCount={maxR}
+                      pct={noWeeklyChange ? undefined : sk.pct_change}
+                      color={C.teal}
+                      showRank
+                      govtTrained={GOVT_TRAINED.includes(
+                        String(sk.skill || "").toLowerCase(),
+                      )}
+                    />
+                  ))}
+                </div>
               </div>
-              <div style={s.skillGrid}>
-                {[...allSkills]
-                  .sort((a, b) => b.this_week - a.this_week)
-                  .map((sk, i) => {
-                    const pct = Math.max((sk.this_week / maxVal) * 100, 2);
-                    const hue =
-                      i < 4 ? "#e94560" : i < 8 ? "#f0a500" : "#4ec9b0";
-                    return (
+            )}
+
+            {/* Declining */}
+            {showDeclining && (
+              <div
+                style={{
+                  background: C.card,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 12,
+                  padding: "14px 14px 12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  borderTop: `2px solid ${C.accent}`,
+                }}
+              >
+                <div style={{ marginBottom: 10, flexShrink: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
+                    {noWeeklyChange ? "Lower Frequency" : "📉 Declining Skills"}
+                  </div>
+                  <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>
+                    {city || "All Cities"} · {role || "All Roles"}
+                    {noWeeklyChange
+                      ? " · ranked by count"
+                      : " · week-over-week"}
+                  </div>
+                </div>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 1 }}
+                >
+                  {declining.map((sk, i) => (
+                    <SkillRow
+                      key={sk.skill}
+                      rank={i + 1}
+                      skill={sk.skill}
+                      count={
+                        (noWeeklyChange ? sk.this_week : sk.last_week) || 0
+                      }
+                      maxCount={maxD}
+                      pct={noWeeklyChange ? undefined : sk.pct_change}
+                      color={C.accent}
+                      showRank
+                      govtTrained={GOVT_TRAINED.includes(
+                        String(sk.skill || "").toLowerCase(),
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Skill Gap Map */}
+            {showRight && (
+              <div
+                style={{
+                  background: C.card,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 12,
+                  padding: "14px",
+                  display: "flex",
+                  flexDirection: "column",
+                  borderTop: `2px solid ${C.amber}`,
+                }}
+              >
+                {/* Header + stat pills */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    marginBottom: 12,
+                    flexShrink: 0,
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{ fontSize: 13, fontWeight: 700, color: C.text }}
+                    >
+                      🎓 Skill Gap Map
+                    </div>
+                    <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>
+                      Hired by market vs trained by PMKVY / SWAYAM
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    <div
+                      style={{
+                        background: C.tealDim,
+                        border: `1px solid ${C.teal}33`,
+                        borderRadius: 7,
+                        padding: "5px 10px",
+                        textAlign: "center",
+                      }}
+                    >
                       <div
-                        key={sk.skill}
-                        style={s.skillRow}
-                        onMouseEnter={(e) =>
-                          setTooltip({ x: e.clientX, y: e.clientY, sk })
-                        }
-                        onMouseLeave={() => setTooltip(null)}
+                        style={{
+                          fontSize: 9,
+                          color: C.muted,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.08em",
+                        }}
                       >
-                        <div style={s.rank}>#{i + 1}</div>
-                        <div style={s.skillName}>{sk.skill}</div>
-                        <div style={s.track}>
+                        Govt Covered
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 17,
+                          fontWeight: 700,
+                          color: C.teal,
+                          fontFamily: "monospace",
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {trainedSkills.length}
+                      </div>
+                      <div style={{ fontSize: 9, color: C.muted }}>
+                        of top demand
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        background: C.accentDim,
+                        border: `1px solid ${C.accent}33`,
+                        borderRadius: 7,
+                        padding: "5px 10px",
+                        textAlign: "center",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 9,
+                          color: C.muted,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.08em",
+                        }}
+                      >
+                        Market Gap
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 17,
+                          fontWeight: 700,
+                          color: C.accent,
+                          fontFamily: "monospace",
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {gapPct}%
+                      </div>
+                      <div style={{ fontSize: 9, color: C.muted }}>
+                        not govt-trained
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* Bar list */}
+                <GapMap skills={allSkills} />
+              </div>
+            )}
+          </div>
+
+          {/* ── Row 2: Skill Categories — full width, 3 equal columns ── */}
+          {showRight && (
+            <div
+              style={{
+                background: C.card,
+                border: `1px solid ${C.border}`,
+                borderRadius: 12,
+                padding: "14px 16px",
+                borderTop: `2px solid ${C.violet}`,
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: C.text,
+                  marginBottom: 12,
+                }}
+              >
+                Skill Categories
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr",
+                  gap: 10,
+                  alignItems: "stretch",
+                }}
+              >
+                {CATS.map((cat) => {
+                  const present = allSkills
+                    .filter((sk) =>
+                      cat.keys.includes(String(sk.skill || "").toLowerCase()),
+                    )
+                    .sort((a, b) => (b.this_week || 0) - (a.this_week || 0))
+                    .slice(0, 6);
+                  if (!present.length) return null;
+                  return (
+                    <div
+                      key={cat.label}
+                      style={{
+                        background: C.surface,
+                        borderRadius: 8,
+                        padding: "10px 12px",
+                        border: `1px solid ${cat.color}33`,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 10,
+                          color: cat.color,
+                          fontWeight: 700,
+                          marginBottom: 8,
+                        }}
+                      >
+                        {cat.label}
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 5,
+                        }}
+                      >
+                        {present.map((sk) => (
                           <div
+                            key={sk.skill}
                             style={{
-                              ...s.fill,
-                              width: `${pct}%`,
-                              background: hue,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              padding: "3px 8px",
+                              borderRadius: 4,
+                              background: cat.color + "12",
+                              border: `1px solid ${cat.color}22`,
                             }}
-                          />
-                        </div>
-                        <div style={{ ...s.val, color: hue }}>
-                          {sk.this_week}
-                        </div>
-                        {i < 3 && (
-                          <div style={{ ...s.crown, color: hue }}>
-                            {["🥇", "🥈", "🥉"][i]}
+                          >
+                            <span style={{ fontSize: 10, color: C.text }}>
+                              {sk.skill}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: 10,
+                                color: cat.color,
+                                fontFamily: "monospace",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {sk.this_week || 0}
+                            </span>
                           </div>
-                        )}
+                        ))}
                       </div>
-                    );
-                  })}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {/* ── Week-over-week (multiple runs) ── */}
-          {!noWeeklyChange && (
-            <div style={s.panels}>
-              {/* Rising */}
-              <div style={s.card}>
-                <div style={s.cardTitle}>📈 Rising Skills</div>
-                <div style={s.subTitle}>Growing week-over-week</div>
-                <div style={s.skillGrid}>
-                  {rising.map((sk, i) => {
-                    const pct = Math.max((sk.this_week / maxVal) * 100, 2);
-                    return (
-                      <div
-                        key={sk.skill}
-                        style={s.skillRow}
-                        onMouseEnter={(e) =>
-                          setTooltip({ x: e.clientX, y: e.clientY, sk })
-                        }
-                        onMouseLeave={() => setTooltip(null)}
-                      >
-                        <div style={s.skillName}>{sk.skill}</div>
-                        <div style={s.track}>
-                          <div
-                            style={{
-                              ...s.fill,
-                              width: `${pct}%`,
-                              background: "#4ec9b0",
-                            }}
-                          />
-                        </div>
-                        <div style={{ ...s.val, color: "#4ec9b0" }}>
-                          {sk.this_week}
-                        </div>
-                        <div style={{ ...s.delta, color: "#4ec9b0" }}>
-                          +{sk.pct_change}%
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              {/* Declining */}
-              <div style={s.card}>
-                <div style={s.cardTitle}>📉 Declining Skills</div>
-                <div style={s.subTitle}>Shrinking week-over-week</div>
-                <div style={s.skillGrid}>
-                  {declining.map((sk, i) => {
-                    const pct = Math.max((sk.last_week / maxVal) * 100, 2);
-                    return (
-                      <div
-                        key={sk.skill}
-                        style={s.skillRow}
-                        onMouseEnter={(e) =>
-                          setTooltip({ x: e.clientX, y: e.clientY, sk })
-                        }
-                        onMouseLeave={() => setTooltip(null)}
-                      >
-                        <div style={s.skillName}>{sk.skill}</div>
-                        <div style={s.track}>
-                          <div
-                            style={{
-                              ...s.fill,
-                              width: `${pct}%`,
-                              background: "#ff6b6b",
-                            }}
-                          />
-                        </div>
-                        <div style={{ ...s.val, color: "#ff6b6b" }}>
-                          {sk.last_week}
-                        </div>
-                        <div style={{ ...s.delta, color: "#ff6b6b" }}>
-                          {sk.pct_change}%
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── Skill category breakdown ── */}
-          <div style={s.categories}>
-            {[
-              {
-                label: "💻 Tech",
-                color: "#4ec9b0",
-                skills: [
-                  "python",
-                  "sql",
-                  "java",
-                  "javascript",
-                  "react",
-                  "aws",
-                  "azure",
-                  "power bi",
-                  "tableau",
-                  "machine learning",
-                  "deep learning",
-                  "nlp",
-                ],
-              },
-              {
-                label: "📋 Office",
-                color: "#f0a500",
-                skills: [
-                  "excel",
-                  "ms office",
-                  "tally",
-                  "sap",
-                  "crm",
-                  "salesforce",
-                  "accounting",
-                ],
-              },
-              {
-                label: "🗣️ Soft",
-                color: "#a78bfa",
-                skills: [
-                  "communication",
-                  "customer service",
-                  "data entry",
-                  "typing",
-                  "sales",
-                  "digital marketing",
-                  "content writing",
-                  "hr",
-                ],
-              },
-            ].map((cat) => {
-              const present = allSkills.filter((sk) =>
-                cat.skills.includes(sk.skill.toLowerCase()),
-              );
-              if (!present.length) return null;
-              return (
-                <div key={cat.label} style={s.catCard}>
-                  <div style={{ ...s.catTitle, color: cat.color }}>
-                    {cat.label}
-                  </div>
-                  <div style={s.chips}>
-                    {present
-                      .sort((a, b) => b.this_week - a.this_week)
-                      .map((sk) => (
-                        <div
-                          key={sk.skill}
-                          style={{
-                            ...s.chip,
-                            borderColor: cat.color + "44",
-                            color: cat.color,
-                          }}
-                        >
-                          {sk.skill}
-                          <span style={s.chipCount}>{sk.this_week}</span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              );
-            })}
+          {/* ── Footer ── */}
+          <div
+            style={{
+              marginTop: 2,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                background: C.teal,
+                borderRadius: "50%",
+                display: "inline-block",
+              }}
+            />
+            <span style={{ color: C.muted, fontSize: 10 }}>
+              Source: Naukri scrape · PMKVY/SWAYAM catalog · Refreshes on filter
+              change ·{" "}
+              {new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}{" "}
+              IST
+            </span>
           </div>
         </>
       )}
 
-      {/* Tooltip */}
-      {tooltip && (
-        <div style={{ ...s.tt, left: tooltip.x + 14, top: tooltip.y - 10 }}>
-          <div style={s.ttHdr}>{tooltip.sk.skill}</div>
-          <div style={s.ttRow}>
-            <span style={s.ttK}>This week</span>
-            <b style={{ color: "#4ec9b0" }}>{tooltip.sk.this_week}</b>
-          </div>
-          <div style={s.ttRow}>
-            <span style={s.ttK}>Last week</span>
-            <span>{tooltip.sk.last_week}</span>
-          </div>
-          {tooltip.sk.delta !== 0 && (
-            <div style={s.ttRow}>
-              <span style={s.ttK}>Change</span>
-              <span
-                style={{ color: tooltip.sk.delta > 0 ? "#4ec9b0" : "#ff6b6b" }}
-              >
-                {tooltip.sk.delta > 0 ? "+" : ""}
-                {tooltip.sk.delta}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 4px; }
+      `}</style>
     </div>
   );
-};
-
-const s = {
-  row: {
-    display: "flex",
-    gap: "0.6rem",
-    flexWrap: "wrap",
-    alignItems: "center",
-    marginBottom: "1rem",
-  },
-  sel: {
-    background: "#0f0f1a",
-    color: "#fff",
-    border: "1px solid #2a2a4a",
-    borderRadius: "6px",
-    padding: "0.42rem 0.75rem",
-    fontSize: "0.87rem",
-  },
-  refresh: {
-    background: "transparent",
-    color: "#606080",
-    border: "1px solid #2a2a4a",
-    borderRadius: "6px",
-    padding: "0.32rem 0.7rem",
-    cursor: "pointer",
-    fontSize: "0.82rem",
-    marginLeft: "auto",
-  },
-  center: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "3rem",
-  },
-  spin: {
-    width: "18px",
-    height: "18px",
-    border: "2px solid #2a2a4a",
-    borderTop: "2px solid #e94560",
-    borderRadius: "50%",
-    animation: "spin 0.8s linear infinite",
-  },
-  empty: {
-    textAlign: "center",
-    padding: "3rem",
-    background: "#0f0f1a",
-    border: "1px dashed #2a2a4a",
-    borderRadius: "10px",
-  },
-  notice: {
-    background: "#1a1a2e",
-    border: "1px solid #2a4a6a",
-    borderRadius: "8px",
-    padding: "0.75rem 1rem",
-    color: "#a0c0e0",
-    fontSize: "0.82rem",
-    marginBottom: "1rem",
-  },
-  card: {
-    background: "#0f0f1a",
-    border: "1px solid #2a2a4a",
-    borderRadius: "12px",
-    padding: "1.25rem",
-    marginBottom: "1rem",
-  },
-  cardTitle: {
-    color: "#fff",
-    fontWeight: 700,
-    fontSize: "0.95rem",
-    marginBottom: "0.25rem",
-  },
-  subTitle: { color: "#606080", fontSize: "0.75rem", marginBottom: "1rem" },
-  panels: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "1rem",
-    marginBottom: "1rem",
-  },
-  skillGrid: { display: "flex", flexDirection: "column", gap: "0.5rem" },
-  skillRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "0.6rem",
-    padding: "0.25rem 0.4rem",
-    borderRadius: "6px",
-    cursor: "default",
-    transition: "background 0.15s",
-  },
-  rank: {
-    width: "28px",
-    color: "#606080",
-    fontSize: "0.75rem",
-    fontWeight: 700,
-    flexShrink: 0,
-  },
-  skillName: {
-    width: "130px",
-    color: "#c0c0d0",
-    fontSize: "0.83rem",
-    flexShrink: 0,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  },
-  track: {
-    flex: 1,
-    height: "10px",
-    background: "#1a1a2e",
-    borderRadius: "5px",
-    overflow: "hidden",
-  },
-  fill: { height: "100%", borderRadius: "5px", transition: "width 0.4s" },
-  val: {
-    width: "40px",
-    fontWeight: 700,
-    fontSize: "0.82rem",
-    textAlign: "right",
-    flexShrink: 0,
-  },
-  delta: {
-    width: "52px",
-    fontWeight: 600,
-    fontSize: "0.75rem",
-    textAlign: "right",
-    flexShrink: 0,
-  },
-  crown: { fontSize: "1rem", flexShrink: 0 },
-  categories: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
-    gap: "0.75rem",
-  },
-  catCard: {
-    background: "#0f0f1a",
-    border: "1px solid #2a2a4a",
-    borderRadius: "10px",
-    padding: "1rem",
-  },
-  catTitle: { fontWeight: 700, fontSize: "0.85rem", marginBottom: "0.75rem" },
-  chips: { display: "flex", flexWrap: "wrap", gap: "0.4rem" },
-  chip: {
-    display: "flex",
-    alignItems: "center",
-    gap: "0.3rem",
-    background: "#1a1a2e",
-    border: "1px solid",
-    borderRadius: "4px",
-    padding: "0.2rem 0.5rem",
-    fontSize: "0.75rem",
-  },
-  chipCount: {
-    background: "#0a0a12",
-    borderRadius: "3px",
-    padding: "0.05rem 0.3rem",
-    fontSize: "0.68rem",
-    color: "#a0a0b0",
-  },
-  tt: {
-    position: "fixed",
-    background: "#1a1a2e",
-    border: "1px solid #2a2a4a",
-    borderRadius: "8px",
-    padding: "0.75rem 1rem",
-    zIndex: 9999,
-    pointerEvents: "none",
-    minWidth: "160px",
-    boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-  },
-  ttHdr: {
-    color: "#e94560",
-    fontWeight: 700,
-    fontSize: "0.8rem",
-    marginBottom: "0.4rem",
-    paddingBottom: "0.3rem",
-    borderBottom: "1px solid #2a2a4a",
-  },
-  ttRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "1rem",
-    fontSize: "0.78rem",
-    color: "#c0c0d0",
-    marginBottom: "0.2rem",
-  },
-  ttK: { color: "#606080" },
-};
-
-export default SkillsTab;
+}

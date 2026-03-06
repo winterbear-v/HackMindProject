@@ -8,7 +8,7 @@ const Home = () => {
     <div style={s.page}>
       {/* Hero */}
       <div style={s.hero}>
-        <div style={s.tag}>🇮🇳 Made for Indian Workers</div>
+        <div style={s.tag}>Made for Indian Workers</div>
         <h1 style={s.title}>SkillsMirage</h1>
         <p style={s.tagline}>
           Know your AI displacement risk. Get a personalised reskilling plan.
