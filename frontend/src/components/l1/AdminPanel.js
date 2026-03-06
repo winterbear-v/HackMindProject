@@ -55,7 +55,7 @@ const AdminPanel = () => {
     try {
       const res = await axios.post(`/api/l1/scrape?${params}`);
       addLog(
-        `${res.data.message} — ${res.data.cities.length} cities × ${res.data.roles.length} roles`,
+        `${res.data.message} — ${res.data.cities.length} cities x ${res.data.roles.length} roles`,
       );
       startPolling();
     } catch (e) {
