@@ -1,48 +1,77 @@
 """
-Gemini Flash Chatbot Service — SkillsMirage L2
-Handles all 5 required question types from the PPT:
-  1. Why is my risk score so high?
-  2. What jobs are safer for someone like me?
-  3. Show paths under N months
-  4. How many BPO jobs in Indore right now? (live L1 query)
-  5. Hindi full support (मुझे क्या करना चाहिए?)
+Chatbot Service — SkillsMirage L2
+Provider priority:
+  1. Groq  (FREE, no card, 14,400 req/day) <- PRIMARY
+  2. Gemini Flash <- FALLBACK
 """
 
 import os
 import re
+import asyncio
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import httpx
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values
 from core.database import get_db
 
-load_dotenv()
+# ── Force reload .env from disk every time ──────────────────
+# This fixes the issue where module-level os.getenv() reads
+# stale values if .env was updated after server started.
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+def _load_env():
+    """Load .env fresh from disk — tries multiple locations."""
+    for path in [
+        Path(__file__).parent.parent / ".env",   # backend/.env
+        Path(".env"),                              # cwd/.env
+        Path("../.env"),                           # parent/.env
+    ]:
+        if path.exists():
+            load_dotenv(dotenv_path=path, override=True)
+            print(f"  [Env] Loaded .env from: {path.resolve()}")
+            return
+    load_dotenv(override=True)  # fallback: search default locations
 
-# Gemini Flash endpoint
+_load_env()
+
+
+def _get_groq_key():
+    return os.getenv("GROQ_API_KEY", "").strip()
+
+def _get_gemini_key():
+    return os.getenv("GEMINI_API_KEY", "").strip()
+
+
+GROQ_URL   = "https://api.groq.com/openai/v1/chat/completions"
 GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
-    "gemini-1.5-flash:generateContent"
+    "gemini-2.0-flash:generateContent"
 )
 
 
 def _get_provider():
-    if GEMINI_API_KEY and GEMINI_API_KEY not in ("", "your_gemini_api_key_here"):
+    """Read keys fresh from env every call."""
+    groq_key   = _get_groq_key()
+    gemini_key = _get_gemini_key()
+
+    print(f"  [Chat] GROQ_API_KEY present: {bool(groq_key and groq_key != 'your_groq_key_here')}")
+    print(f"  [Chat] GEMINI_API_KEY present: {bool(gemini_key and gemini_key != 'your_gemini_api_key_here')}")
+
+    if groq_key and groq_key not in ("", "your_groq_key_here"):
+        return "groq"
+    if gemini_key and gemini_key not in ("", "your_gemini_api_key_here"):
         return "gemini"
     return None
 
 
 # ─── L1 Evidence Helpers ────────────────────────────────────
 
-async def _count_jobs(city: str = None, role: str = None, days: int = 30) -> int:
+async def _count_jobs(city=None, role=None, days=30):
     db = get_db()
     since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
     match = {"date": {"$gte": since}}
-    if city:
-        match["city"] = city
-    if role:
-        match["role_norm"] = role
+    if city: match["city"] = city
+    if role: match["role_norm"] = role
     res = await db.aggregates.aggregate([
         {"$match": match},
         {"$group": {"_id": None, "total": {"$sum": "$posting_count"}}},
@@ -50,25 +79,19 @@ async def _count_jobs(city: str = None, role: str = None, days: int = 30) -> int
     return res[0]["total"] if res else 0
 
 
-async def get_l1_evidence(city: str, role_norm: str) -> dict:
-    """Fetch comprehensive L1 context for the chatbot."""
+async def get_l1_evidence(city, role_norm):
     db = get_db()
     since_30 = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
     since_90 = (datetime.now(timezone.utc) - timedelta(days=90)).strftime("%Y-%m-%d")
 
-    # Current city+role data
     curr_docs = await db.aggregates.find(
-        {"city": city, "date": {"$gte": since_30}},
-        {"_id": 0}
+        {"city": city, "date": {"$gte": since_30}}, {"_id": 0}
     ).sort("date", -1).limit(5).to_list(5)
 
-    # Historical (90d) for trend
     hist_docs = await db.aggregates.find(
-        {"city": city, "date": {"$gte": since_90, "$lt": since_30}},
-        {"_id": 0}
+        {"city": city, "date": {"$gte": since_90, "$lt": since_30}}, {"_id": 0}
     ).sort("date", -1).limit(5).to_list(5)
 
-    # Safe roles = high posting count in city, low AI mention rate
     safe_pipeline = [
         {"$match": {"city": city, "date": {"$gte": since_30}}},
         {"$group": {
@@ -83,189 +106,193 @@ async def get_l1_evidence(city: str, role_norm: str) -> dict:
     safe_roles_raw = await db.aggregates.aggregate(safe_pipeline).to_list(5)
     safe_roles = [{"role": r["_id"], "postings": r["postings"]} for r in safe_roles_raw]
 
-    return {
-        "curr_docs": curr_docs,
-        "hist_docs": hist_docs,
-        "safe_roles": safe_roles,
-    }
+    return {"curr_docs": curr_docs, "hist_docs": hist_docs, "safe_roles": safe_roles}
+
+
+# ─── Groq API Call ──────────────────────────────────────────
+
+async def _call_groq(system_prompt, user_prompt):
+    groq_key = _get_groq_key()
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                GROQ_URL,
+                headers={
+                    "Authorization": f"Bearer {groq_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "llama-3.3-70b-versatile",
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user",   "content": user_prompt},
+                    ],
+                    "max_tokens": 1024,
+                    "temperature": 0.3,
+                },
+            )
+            if resp.status_code == 429:
+                return {"error": "rate_limit", "message": "Groq rate limited — please wait a moment."}
+            if resp.status_code != 200:
+                return {"error": "api_error", "message": f"Groq error {resp.status_code}: {resp.text[:200]}"}
+            answer = resp.json()["choices"][0]["message"]["content"]
+            return {"answer": answer}
+    except httpx.TimeoutException:
+        return {"error": "timeout", "message": "Groq timed out. Please try again."}
+    except Exception as e:
+        return {"error": "exception", "message": str(e)}
+
+
+# ─── Gemini API Call ────────────────────────────────────────
+
+async def _call_gemini(system_prompt, user_prompt):
+    gemini_key = _get_gemini_key()
+    MAX_RETRIES = 3
+    RETRY_DELAYS = [10, 20, 30]
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            for attempt in range(MAX_RETRIES):
+                resp = await client.post(
+                    f"{GEMINI_URL}?key={gemini_key}",
+                    headers={"Content-Type": "application/json"},
+                    json={
+                        "system_instruction": {"parts": [{"text": system_prompt}]},
+                        "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+                        "generationConfig": {"maxOutputTokens": 1024, "temperature": 0.3},
+                    },
+                )
+                if resp.status_code == 429:
+                    if attempt < MAX_RETRIES - 1:
+                        wait = RETRY_DELAYS[attempt]
+                        print(f"  [Gemini] Rate limited. Waiting {wait}s...")
+                        await asyncio.sleep(wait)
+                        continue
+                    return {"error": "rate_limit", "message": "Please wait 30 seconds and try again."}
+                if resp.status_code != 200:
+                    return {"error": "api_error", "message": f"Gemini error {resp.status_code}: {resp.text[:200]}"}
+                break
+            try:
+                answer = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+                return {"answer": answer}
+            except (KeyError, IndexError) as e:
+                return {"error": "parse_error", "message": f"Unexpected response: {e}"}
+    except httpx.TimeoutException:
+        return {"error": "timeout", "message": "Gemini timed out. Please try again."}
+    except Exception as e:
+        return {"error": "exception", "message": str(e)}
 
 
 # ─── Main Ask Function ───────────────────────────────────────
 
-async def ask_claude(
-    profile: dict,
-    question: str,
-    risk_result: dict,
-    reskill_result: dict,
-    language: str = "en",
-) -> dict:
-    """
-    Main chatbot function — uses Gemini Flash (free tier).
-    The function name 'ask_claude' is kept for backward compatibility
-    with existing router imports.
-    """
+async def ask_claude(profile, question, risk_result, reskill_result, language="en"):
+    # Re-load env on every call to pick up any .env changes
+    _load_env()
+
     provider = _get_provider()
     if not provider:
+        # Debug: print what keys we see
+        print(f"  [Chat] DEBUG - All env keys with GROQ: {[k for k in os.environ if 'GROQ' in k]}")
+        print(f"  [Chat] DEBUG - All env keys with GEMINI: {[k for k in os.environ if 'GEMINI' in k]}")
         return {
             "answer": (
-                "⚠️ No AI API key set.\n\n"
-                "Add your Gemini API key to backend/.env:\n"
-                "  GEMINI_API_KEY=AIzaSy_xxxxxxxxxxxxxxxxxxxx\n\n"
-                "Get a FREE key at: https://aistudio.google.com\n"
-                "(Free tier: 1 million tokens/day, 15 req/min)"
+                "⚠️ No AI API key found.\n\n"
+                "Your .env file should have:\n"
+                "  GROQ_API_KEY=gsk_xxxxxxxxxxxx\n\n"
+                "Make sure:\n"
+                "1. The file is saved at backend/.env\n"
+                "2. No spaces around the = sign\n"
+                "3. No quotes around the value\n"
+                "4. Restart the backend after saving"
             ),
-            "citations": [],
-            "language": language,
+            "citations": [], "language": language,
         }
 
-    # Fetch live L1 context
-    l1 = await get_l1_evidence(
-        profile.get("city", ""),
-        profile.get("title", "")
-    )
+    # Build context
+    l1 = await get_l1_evidence(profile.get("city", ""), profile.get("title", ""))
 
-    # Check for live job count question
     count_match = re.search(
         r'(?:how many|count|number of)\s+(.+?)\s+(?:jobs?|openings?|postings?)\s+(?:in|at)\s+(\w+)',
         question, re.IGNORECASE
     )
     live_count = None
     if count_match:
-        role_q = count_match.group(1).strip()
-        city_q = count_match.group(2).strip()
-        live_count = await _count_jobs(city=city_q, role=role_q)
+        live_count = await _count_jobs(city=count_match.group(2).strip(), role=count_match.group(1).strip())
 
-    # Format evidence blocks
     evidence_text = ""
     for i, doc in enumerate(l1["curr_docs"][:5], 1):
         skills = ", ".join(s["skill"] for s in doc.get("top_skills", [])[:4])
         evidence_text += (
-            f"\nEVIDENCE_{i} [{doc.get('city')} — {doc.get('role_norm')} — {doc.get('date')}]: "
+            f"\nEVIDENCE_{i} [{doc.get('city')} - {doc.get('role_norm')} - {doc.get('date')}]: "
             f"postings={doc.get('posting_count')}, "
-            f"AI_rate={doc.get('ai_tool_mention_rate', 0) * 100:.1f}%, "
-            f"skills=[{skills}]"
+            f"AI_rate={doc.get('ai_tool_mention_rate', 0)*100:.1f}%, skills=[{skills}]"
         )
 
-    # Safe roles context
     safe_roles_text = ", ".join(
-        f"{r['role']} ({r['postings']} postings in {profile.get('city', '')})"
-        for r in l1["safe_roles"]
+        f"{r['role']} ({r['postings']} postings)" for r in l1["safe_roles"]
     ) or "No data available yet."
 
-    # Reskilling path summary
     reskill_text = ""
     for tr in reskill_result.get("target_roles", [])[:2]:
-        reskill_text += f"\n  • {tr['role']} — {tr['total_weeks']} weeks"
+        reskill_text += f"\n  - {tr['role']} - {tr['total_weeks']} weeks"
         for w in tr.get("weeks", [])[:3]:
-            reskill_text += f"\n    {w['week']}: {w['action']} → {w['resource_link']}"
+            reskill_text += f"\n    {w['week']}: {w['action']} -> {w['resource_link']}"
 
-    # Language instruction
     lang_inst = (
-        "Respond ENTIRELY in Hindi (Devanagari script). Do not switch to English at all."
-        if language == "hi"
-        else "Respond in English."
+        "Respond ENTIRELY in Hindi (Devanagari script)."
+        if language == "hi" else "Respond in English."
     )
 
-    # System + user prompts
-    system_prompt = f"""You are SkillsMirage AI Advisor — India's workforce intelligence assistant.
-You have access to LIVE Layer 1 job market data and the worker's personal profile.
-
-CRITICAL RULES:
-1. ALWAYS cite EVIDENCE_N tags when referencing data
-2. NEVER hallucinate numbers — use only data provided
-3. For "how many jobs" questions — use the LIVE_COUNT provided
-4. For "safer jobs" questions — list from SAFE_ROLES data
-5. For "time-constrained paths" — filter reskilling weeks accordingly
-6. {lang_inst}
-7. Be concise, helpful, and actionable. Max 300 words."""
+    system_prompt = f"""You are SkillsMirage AI Advisor - India's workforce intelligence assistant.
+RULES:
+1. Always cite EVIDENCE_N tags when referencing data
+2. Never hallucinate numbers - use only provided data
+3. For job count questions - use LIVE_COUNT
+4. For safer jobs - list from SAFE_ROLES
+5. {lang_inst}
+6. Be concise and actionable. Max 300 words."""
 
     user_prompt = f"""=== WORKER PROFILE ===
-Name: {profile.get('name', 'Worker')}
-Role: {profile.get('title', 'Unknown')}
-City: {profile.get('city', 'Unknown')}
-Experience: {profile.get('xp_years', 0)} years
-Skills: {', '.join(profile.get('extracted_skills', []))}
+Name: {profile.get('name','Worker')} | Role: {profile.get('title','Unknown')} | City: {profile.get('city','Unknown')}
+Experience: {profile.get('xp_years',0)} years | Skills: {', '.join(profile.get('extracted_skills',[]))}
 
 === RISK SCORE ===
-Score: {risk_result.get('score', 'N/A')}/100
-Level: {risk_result.get('level', 'N/A')}
-Drivers: {risk_result.get('drivers', {})}
+Score: {risk_result.get('score','N/A')}/100 | Level: {risk_result.get('level','N/A')}
 
-=== LIVE L1 EVIDENCE (last 30 days) ===
-{evidence_text if evidence_text else "No recent data found."}
+=== LIVE L1 EVIDENCE ===
+{evidence_text or "No recent data found."}
 
-=== SAFE ROLES IN {profile.get('city', 'your city').upper()} ===
+=== SAFE ROLES IN {profile.get('city','your city').upper()} ===
 {safe_roles_text}
 
 === RESKILLING PATHS ===
-{reskill_text if reskill_text else "No reskilling data available."}
+{reskill_text or "No reskilling data available."}
 
-{f"=== LIVE JOB COUNT ==={chr(10)}Current openings matching query: {live_count}" if live_count is not None else ""}
+{f"=== LIVE JOB COUNT ==={chr(10)}Current openings: {live_count}" if live_count is not None else ""}
 
 === USER QUESTION ===
 {question}
 
-Cite EVIDENCE_N tags where relevant. {lang_inst}"""
+{lang_inst}"""
 
-    # ── Call Gemini Flash ──────────────────────────────────
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(
-                f"{GEMINI_URL}?key={GEMINI_API_KEY}",
-                headers={"Content-Type": "application/json"},
-                json={
-                    "system_instruction": {
-                        "parts": [{"text": system_prompt}]
-                    },
-                    "contents": [
-                        {
-                            "role": "user",
-                            "parts": [{"text": user_prompt}]
-                        }
-                    ],
-                    "generationConfig": {
-                        "maxOutputTokens": 1024,
-                        "temperature": 0.3,
-                    },
-                },
-            )
+    # Call provider
+    result = {}
+    if provider == "groq":
+        print(f"  [Chat] Calling Groq API...")
+        result = await _call_groq(system_prompt, user_prompt)
+        if "error" in result:
+            gemini_key = _get_gemini_key()
+            if gemini_key and gemini_key not in ("", "your_gemini_api_key_here"):
+                print(f"  [Chat] Groq failed ({result.get('error')}), trying Gemini...")
+                result = await _call_gemini(system_prompt, user_prompt)
+    else:
+        print(f"  [Chat] Calling Gemini API...")
+        result = await _call_gemini(system_prompt, user_prompt)
 
-            if resp.status_code != 200:
-                error_detail = resp.text[:300]
-                return {
-                    "answer": f"❌ Gemini API error {resp.status_code}:\n{error_detail}\n\nCheck your GEMINI_API_KEY in backend/.env",
-                    "citations": [],
-                    "language": language,
-                }
+    if "error" in result:
+        return {"answer": f"❌ {result.get('message','Unknown error')}", "citations": [], "language": language}
 
-            resp_json = resp.json()
+    answer = result.get("answer", "")
 
-            # Extract text from Gemini response structure
-            try:
-                answer = (
-                    resp_json["candidates"][0]["content"]["parts"][0]["text"]
-                )
-            except (KeyError, IndexError) as e:
-                return {
-                    "answer": f"❌ Unexpected Gemini response format: {str(e)}\nRaw: {str(resp_json)[:200]}",
-                    "citations": [],
-                    "language": language,
-                }
-
-    except httpx.TimeoutException:
-        return {
-            "answer": "❌ Gemini API timed out. Please try again in a moment.",
-            "citations": [],
-            "language": language,
-        }
-    except Exception as e:
-        return {
-            "answer": f"❌ API call failed: {str(e)}",
-            "citations": [],
-            "language": language,
-        }
-
-    # ── Extract cited evidence for frontend ───────────────
     cited = re.findall(r"EVIDENCE_(\d+)", answer)
     citations = []
     for idx in set(cited):
@@ -280,8 +307,4 @@ Cite EVIDENCE_N tags where relevant. {lang_inst}"""
                 "posting_count": d.get("posting_count"),
             })
 
-    return {
-        "answer": answer,
-        "citations": citations,
-        "language": language,
-    }
+    return {"answer": answer, "citations": citations, "language": language}
