@@ -1,17 +1,29 @@
+import os
 from fastapi import FastAPI, Request
 from fastapi.exceptions import HTTPException, RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from dotenv import load_dotenv
 
 from routers import auth, users, l1, l2
 from core.database import connect_db, disconnect_db
 
-app = FastAPI(title="MERN → FastAPI Template", version="1.0.0")
+load_dotenv()
+
+app = FastAPI(title="SkillsMirage API", version="1.0.0")
 
 # ─── CORS ────────────────────────────────────────────────────
+# In production, reads FRONTEND_URL from env (your Vercel URL).
+# In development, falls back to localhost:3000.
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        FRONTEND_URL,
+        "http://localhost:3000",   # always allow local dev
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -38,10 +50,6 @@ async def root():
     return {"message": "🚀 FastAPI is running!", "status": "OK"}
 
 # ─── Error handlers ──────────────────────────────────────────
-# FastAPI wraps errors in {"detail": ...} by default.
-# These handlers flatten it to {"success": false, "message": "..."}
-# so the React frontend's err.response.data.message works correctly.
-
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     detail = exc.detail

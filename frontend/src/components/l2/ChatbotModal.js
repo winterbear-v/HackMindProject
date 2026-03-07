@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import axios from "axios";
+import api from "../../api";
 
-// All 5 required question types from the PPT spec
 const QUESTIONS = {
   en: [
     {
@@ -67,7 +66,7 @@ const ChatbotModal = ({ profileId, onClose }) => {
     setMsgs((p) => [...p, { role: "user", text: question }]);
     setLoading(true);
     try {
-      const res = await axios.post("/api/l2/chat", {
+      const res = await api.post("/api/l2/chat", {
         profile_id: profileId,
         question,
         language: lang,
@@ -128,7 +127,7 @@ const ChatbotModal = ({ profileId, onClose }) => {
           </div>
         </div>
 
-        {/* 5 Quick Questions */}
+        {/* Quick questions */}
         <div style={c.quickWrap}>
           <div style={c.quickLabel}>
             {lang === "hi" ? "त्वरित प्रश्न:" : "5 Question types (PPT spec):"}
@@ -218,9 +217,6 @@ const ChatbotModal = ({ profileId, onClose }) => {
           </button>
         </div>
       </div>
-      <style>{`
-        @keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
-      `}</style>
     </div>
   );
 };
@@ -237,12 +233,12 @@ const c = {
     padding: "1rem",
   },
   modal: {
-    background: "#0f0f1a",
+    background: "#0a0a12",
     border: "1px solid #2a2a4a",
-    borderRadius: "14px",
+    borderRadius: "12px",
     width: "100%",
-    maxWidth: "720px",
-    maxHeight: "90vh",
+    maxWidth: "680px",
+    height: "80vh",
     display: "flex",
     flexDirection: "column",
     overflow: "hidden",
@@ -250,26 +246,25 @@ const c = {
   hdr: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     padding: "1rem 1.25rem",
     borderBottom: "1px solid #2a2a4a",
     flexShrink: 0,
   },
   hdrTitle: { color: "#fff", fontWeight: 700, fontSize: "1rem" },
-  hdrSub: { color: "#606080", fontSize: "0.72rem", marginTop: "0.15rem" },
-  hdrRight: { display: "flex", gap: "0.5rem", alignItems: "center" },
+  hdrSub: { color: "#606080", fontSize: "0.75rem", marginTop: "0.15rem" },
+  hdrRight: { display: "flex", alignItems: "center", gap: "0.75rem" },
   langToggle: {
     display: "flex",
-    background: "#1a1a2e",
+    border: "1px solid #2a2a4a",
     borderRadius: "6px",
     overflow: "hidden",
-    border: "1px solid #2a2a4a",
   },
   langBtn: {
-    padding: "0.3rem 0.75rem",
     background: "transparent",
     color: "#a0a0b0",
     border: "none",
+    padding: "0.3rem 0.65rem",
     cursor: "pointer",
     fontSize: "0.82rem",
   },

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import axios from "axios";
+import api from "../../api";
 
 const CITIES = [
   "Bangalore",
@@ -36,7 +36,7 @@ const AdminPanel = () => {
 
   const fetchStatus = async () => {
     try {
-      const res = await axios.get("/api/l1/status");
+      const res = await api.get("/api/l1/status");
       setStatus(res.data.data);
       return res.data.data;
     } catch (e) {
@@ -53,7 +53,7 @@ const AdminPanel = () => {
     if (selCities.length) params.append("cities", selCities.join(","));
     if (selRoles.length) params.append("roles", selRoles.join(","));
     try {
-      const res = await axios.post(`/api/l1/scrape?${params}`);
+      const res = await api.post(`/api/l1/scrape?${params}`);
       addLog(
         `${res.data.message} — ${res.data.cities.length} cities x ${res.data.roles.length} roles`,
       );

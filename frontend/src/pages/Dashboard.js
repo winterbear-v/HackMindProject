@@ -102,8 +102,8 @@ const TABS = [
   { id: "trends",   label: "Hiring Trends",      group: "L1" },
   { id: "skills",   label: "Skills Intel",        group: "L1" },
   { id: "vuln",     label: "Vulnerability Index", group: "L1" },
-  { id: "warning",  label: "Early Warning",       group: "L1", bonus: true },
-  { id: "employer", label: "Employer Gap",        group: "L1", bonus: true },
+  { id: "warning",  label: "Early Warning",       group: "L1" },
+  { id: "employer", label: "Employer Gap",        group: "L1" },
   { id: "worker",   label: "My Risk & Plan",      group: "L2" },
   { id: "admin",    label: "Scraper",             group: "admin" },
 ];

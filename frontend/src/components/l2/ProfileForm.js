@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import api from "../../api";
 
 const CITIES = [
   "Bangalore",
@@ -51,14 +51,13 @@ const ProfileForm = ({ onSubmit }) => {
   };
 
   const handleSubmit = async () => {
-    if (!form.title || !form.city || !form.xp_years || !form.writeup) {
+    if (!form.title || !form.city || !form.xp_years || !form.writeup)
       return setError("All fields are required.");
-    }
     if (wordCount < 30) return setError("Writeup must be at least 30 words.");
     setError("");
     setLoading(true);
     try {
-      const res = await axios.post("/api/l2/profile", {
+      const res = await api.post("/api/l2/profile", {
         ...form,
         xp_years: parseFloat(form.xp_years),
       });
@@ -87,17 +86,17 @@ const ProfileForm = ({ onSubmit }) => {
 
       <div style={f.grid}>
         <div style={f.field}>
-          <label style={f.label}>Current Job Title</label>
+          <label style={f.label}>Job Title *</label>
           <input
             style={f.input}
             name="title"
             value={form.title}
             onChange={handleChange}
-            placeholder="e.g. BPO Executive, Data Entry Operator"
+            placeholder="e.g. BPO Executive, Data Analyst"
           />
         </div>
         <div style={f.field}>
-          <label style={f.label}>City</label>
+          <label style={f.label}>City *</label>
           <select
             style={f.input}
             name="city"
@@ -111,13 +110,14 @@ const ProfileForm = ({ onSubmit }) => {
           </select>
         </div>
         <div style={f.field}>
-          <label style={f.label}>Years of Experience</label>
+          <label style={f.label}>Years of Experience *</label>
           <input
             style={f.input}
             name="xp_years"
             type="number"
             min="0"
-            max="50"
+            max="40"
+            step="0.5"
             value={form.xp_years}
             onChange={handleChange}
             placeholder="e.g. 3"
@@ -127,32 +127,32 @@ const ProfileForm = ({ onSubmit }) => {
 
       <div style={f.field}>
         <label style={f.label}>
-          Work Description
+          Work Description * &nbsp;
           <span
             style={{
-              ...f.wordCount,
-              color: wordCount < 30 ? "#ff6b6b" : "#4ec9b0",
+              color: wordCount >= 30 ? "#10B981" : "#9CA3AF",
+              fontWeight: 400,
             }}
           >
-            {wordCount} words {wordCount < 30 ? "(min 30)" : "✓"}
+            ({wordCount} words
+            {wordCount < 30 ? ` — need ${30 - wordCount} more` : " ✓"})
           </span>
         </label>
         <textarea
-          style={f.textarea}
+          style={{ ...f.input, height: "140px", resize: "vertical" }}
           name="writeup"
           value={form.writeup}
           onChange={handleChange}
-          rows={6}
-          placeholder="Describe your current job, daily tasks, tools you use, and skills you have. Mention any concerns about automation. (100–200 words)"
+          placeholder="Describe your daily tasks, tools you use, skills you have, and any automation concerns…"
         />
       </div>
 
       <button
-        style={{ ...f.btn, ...(loading ? f.btnDisabled : {}) }}
+        style={{ ...f.submitBtn, ...(loading ? f.submitDisabled : {}) }}
         onClick={handleSubmit}
         disabled={loading}
       >
-        {loading ? "Analysing…" : "Analyse My Risk"}
+        {loading ? "Creating Profile…" : "Analyse My Risk →"}
       </button>
     </div>
   );
@@ -160,41 +160,42 @@ const ProfileForm = ({ onSubmit }) => {
 
 const f = {
   wrap: {
-    background: "#0f0f1a",
-    border: "1px solid #2a2a4a",
+    background: "#141821",
+    border: "1px solid #2A3144",
     borderRadius: "12px",
     padding: "1.5rem",
+    fontFamily: "'Inter',sans-serif",
   },
   header: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: "0.5rem",
-    flexWrap: "wrap",
-    gap: "0.5rem",
   },
-  title: { margin: 0, color: "#fff", fontSize: "1.2rem" },
+  title: { color: "#E5E7EB", fontWeight: 700, fontSize: "1.1rem", margin: 0 },
   sampleBtn: {
-    background: "#1a1a2e",
-    color: "#a0a0b0",
-    border: "1px solid #2a2a4a",
+    background: "transparent",
+    color: "#F97316",
+    border: "1px solid #F97316",
     borderRadius: "6px",
-    padding: "0.35rem 0.8rem",
+    padding: "0.35rem 0.75rem",
     cursor: "pointer",
-    fontSize: "0.82rem",
+    fontSize: "0.8rem",
+    fontWeight: 600,
   },
-  sub: { color: "#606080", fontSize: "0.85rem", margin: "0 0 1.25rem" },
+  sub: { color: "#9CA3AF", fontSize: "0.85rem", margin: "0 0 1.25rem" },
   error: {
-    background: "#3d0c1a",
-    color: "#ff6b6b",
-    padding: "0.65rem 1rem",
+    background: "rgba(239,68,68,0.12)",
+    border: "1px solid rgba(239,68,68,0.4)",
+    color: "#F87171",
     borderRadius: "6px",
+    padding: "0.6rem 0.9rem",
+    fontSize: "0.85rem",
     marginBottom: "1rem",
-    fontSize: "0.88rem",
   },
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gridTemplateColumns: "1fr 1fr 1fr",
     gap: "1rem",
     marginBottom: "1rem",
   },
@@ -202,47 +203,33 @@ const f = {
     display: "flex",
     flexDirection: "column",
     gap: "0.4rem",
-    marginBottom: "0.75rem",
+    marginBottom: "1rem",
   },
-  label: {
-    color: "#a0a0b0",
-    fontSize: "0.83rem",
-    fontWeight: 600,
-    display: "flex",
-    justifyContent: "space-between",
-  },
-  wordCount: { fontSize: "0.75rem", fontWeight: 400 },
+  label: { color: "#9CA3AF", fontSize: "0.78rem", fontWeight: 600 },
   input: {
-    background: "#0f0f1a",
-    color: "#fff",
-    border: "1px solid #2a2a4a",
+    background: "#1C2130",
+    border: "1px solid #2A3144",
     borderRadius: "6px",
-    padding: "0.55rem 0.8rem",
+    color: "#E5E7EB",
+    padding: "0.55rem 0.75rem",
     fontSize: "0.9rem",
-  },
-  textarea: {
-    background: "#0f0f1a",
-    color: "#fff",
-    border: "1px solid #2a2a4a",
-    borderRadius: "6px",
-    padding: "0.65rem 0.8rem",
-    fontSize: "0.88rem",
-    resize: "vertical",
-    lineHeight: 1.6,
-  },
-  btn: {
+    outline: "none",
     width: "100%",
-    padding: "0.85rem",
-    background: "#e94560",
+    boxSizing: "border-box",
+  },
+  submitBtn: {
+    width: "100%",
+    background: "#F97316",
     color: "#fff",
     border: "none",
     borderRadius: "8px",
-    fontSize: "1rem",
+    padding: "0.8rem",
     fontWeight: 700,
+    fontSize: "1rem",
     cursor: "pointer",
     marginTop: "0.5rem",
   },
-  btnDisabled: { background: "#555", cursor: "not-allowed" },
+  submitDisabled: { background: "#4B5563", cursor: "not-allowed" },
 };
 
 export default ProfileForm;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../../api";
 
 const C = {
   bg: "#0B0E13",
@@ -7,26 +7,13 @@ const C = {
   card: "#1C2130",
   border: "#2A3144",
   accent: "#F97316",
-  teal: "#10B981", // injected standard emerald for positive charts
-  amber: "#F97316", // mapped from Orange
+  teal: "#10B981",
+  amber: "#F97316",
   yellow: "#F97316",
   text: "#E5E7EB",
   muted: "#9CA3AF",
   grid: "#1C2130",
 };
-// const C = {
-//   bg: "#0d0f1a",
-//   surface: "#13162a",
-//   card: "#181c30",
-//   border: "#252a42",
-//   accent: "#f43f72",
-//   teal: "#00d4b1",
-//   amber: "#f0a500",
-//   yellow: "#eab308",
-//   text: "#e2e8f0",
-//   muted: "#6b7280",
-//   grid: "#1f2640",
-// };
 
 const SEV = {
   CRITICAL: {
@@ -49,7 +36,6 @@ const SEV = {
   },
 };
 
-// ── Mock generator ─────────────────────────────────────────────────────────────
 function generateWarnings(threshold) {
   const cities = [
     "Ahmedabad",
@@ -101,7 +87,6 @@ function generateWarnings(threshold) {
   return out.sort((a, b) => b.decline_pct - a.decline_pct);
 }
 
-// ── Compact warning row ────────────────────────────────────────────────────────
 function WarnRow({ w, rank }) {
   const [hov, setHov] = useState(false);
   const sev = SEV[w.severity];
@@ -116,26 +101,16 @@ function WarnRow({ w, rank }) {
         gap: 8,
         padding: "5px 8px",
         borderRadius: 7,
-        background: hov ? sev.bg : "transparent",
-        borderLeft: `2px solid ${hov ? sev.color : "transparent"}`,
-        transition: "all 0.15s",
-        cursor: "default",
+        background: hov ? C.surface : "transparent",
+        transition: "background 0.12s",
       }}
     >
-      <span
-        style={{
-          fontSize: 9,
-          color: C.muted,
-          fontFamily: "monospace",
-          textAlign: "right",
-        }}
-      >
+      <span style={{ fontSize: 9, color: C.muted, fontFamily: "monospace" }}>
         {rank}
       </span>
       <span
         style={{
-          fontSize: 11,
-          fontWeight: 600,
+          fontSize: 10,
           color: C.text,
           overflow: "hidden",
           textOverflow: "ellipsis",
@@ -146,8 +121,8 @@ function WarnRow({ w, rank }) {
       </span>
       <span
         style={{
-          fontSize: 11,
-          color: C.muted,
+          fontSize: 10,
+          color: C.text,
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
@@ -157,19 +132,19 @@ function WarnRow({ w, rank }) {
       </span>
       <span
         style={{
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: 700,
           color: sev.color,
           fontFamily: "monospace",
           textAlign: "right",
         }}
       >
-        ▼{w.decline_pct}%
+        -{w.decline_pct}%
       </span>
       <span
         style={{
           fontSize: 10,
-          color: C.muted,
+          color: C.text,
           fontFamily: "monospace",
           textAlign: "right",
         }}
@@ -189,14 +164,13 @@ function WarnRow({ w, rank }) {
       <span
         style={{
           fontSize: 10,
-          color: w.ai_rate > 40 ? C.amber : C.muted,
+          color: w.ai_rate > 50 ? C.amber : C.muted,
           fontFamily: "monospace",
           textAlign: "right",
         }}
       >
         {w.ai_rate}%
       </span>
-      {/* Mini bar */}
       <div
         style={{
           height: 5,
@@ -234,17 +208,16 @@ function WarnRow({ w, rank }) {
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
 export default function EarlyWarning() {
   const [threshold, setThreshold] = useState(20);
   const [warnings, setWarnings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sevFilter, setSevFilter] = useState("ALL");
-  const [sortBy, setSortBy] = useState("decline"); // decline | ai | postings
+  const [sortBy, setSortBy] = useState("decline");
 
   const load = () => {
     setLoading(true);
-    axios
+    api
       .get(`/api/l1/early-warning?threshold=${threshold}`)
       .then((res) => setWarnings(res.data?.data?.warnings || []))
       .catch(() => setWarnings(generateWarnings(threshold)))
@@ -253,7 +226,7 @@ export default function EarlyWarning() {
 
   useEffect(() => {
     load();
-  }, [threshold]);
+  }, [threshold]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const counts = {
     CRITICAL: warnings.filter((w) => w.severity === "CRITICAL").length,
@@ -280,117 +253,87 @@ export default function EarlyWarning() {
     border: `1px solid ${active ? color : C.border}`,
     background: active ? color + "22" : "transparent",
     color: active ? color : C.muted,
-    fontFamily: "'JetBrains Mono',monospace",
-    transition: "all 0.15s",
   });
 
   return (
     <div
       style={{
         background: C.bg,
+        padding: 20,
+        borderRadius: 16,
+        fontFamily: "'Inter',sans-serif",
         color: C.text,
-        height: "100vh",
-        overflow: "hidden",
-        fontFamily: "'IBM Plex Sans','Segoe UI',sans-serif",
         display: "flex",
         flexDirection: "column",
-        padding: "14px 18px",
-        boxSizing: "border-box",
+        gap: 12,
+        minHeight: 520,
       }}
     >
-      <link
-        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
-        rel="stylesheet"
-      />
-
-      {/* ── Top bar ── */}
+      {/* Controls */}
       <div
         style={{
           display: "flex",
           gap: 10,
           alignItems: "center",
+          flexWrap: "wrap",
           flexShrink: 0,
-          background: C.surface,
-          border: `1px solid ${C.border}`,
-          borderRadius: 10,
-          padding: "9px 14px",
-          marginBottom: 12,
         }}
       >
-        <span
+        <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
+          Early Warning System
+        </div>
+        <div
           style={{
-            fontSize: 10,
-            color: C.muted,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginLeft: 8,
           }}
         >
-          Early Warning
-        </span>
-        <div
-          style={{
-            width: 1,
-            height: 18,
-            background: C.border,
-            margin: "0 4px",
-          }}
-        />
-        <span style={{ fontSize: 10, color: C.muted }}>Min decline:</span>
-        {[10, 15, 20, 30].map((t) => (
-          <button
-            key={t}
-            onClick={() => setThreshold(t)}
-            style={btn(threshold === t)}
-          >
-            {t}%
-          </button>
-        ))}
-        <div
-          style={{
-            width: 1,
-            height: 18,
-            background: C.border,
-            margin: "0 4px",
-          }}
-        />
-        <span style={{ fontSize: 10, color: C.muted }}>Sort:</span>
-        {[
-          ["decline", "▼ Decline"],
-          ["ai", "AI Rate"],
-          ["postings", "Postings"],
-        ].map(([k, l]) => (
-          <button
-            key={k}
-            onClick={() => setSortBy(k)}
-            style={btn(sortBy === k, C.teal)}
-          >
-            {l}
-          </button>
-        ))}
-        {loading && (
+          <span style={{ fontSize: 11, color: C.muted }}>Min decline:</span>
+          <input
+            type="range"
+            min={5}
+            max={50}
+            step={5}
+            value={threshold}
+            onChange={(e) => setThreshold(+e.target.value)}
+            style={{ width: 90, accentColor: C.accent }}
+          />
           <span
             style={{
+              fontSize: 11,
+              fontWeight: 700,
               color: C.accent,
-              fontSize: 10,
               fontFamily: "monospace",
-              marginLeft: 4,
+              minWidth: 30,
             }}
           >
-            ● syncing…
+            {threshold}%
           </span>
-        )}
+        </div>
+        <div style={{ display: "flex", gap: 6, marginLeft: 8 }}>
+          {["decline", "ai", "postings"].map((s) => (
+            <button
+              key={s}
+              style={btn(sortBy === s)}
+              onClick={() => setSortBy(s)}
+            >
+              Sort: {s}
+            </button>
+          ))}
+        </div>
         <button onClick={load} style={{ ...btn(false), marginLeft: "auto" }}>
           ↻ Refresh
         </button>
       </div>
 
-      {/* ── Stat row ── */}
+      {/* Stat cards */}
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr 1fr 1fr",
           gap: 10,
-          marginBottom: 12,
           flexShrink: 0,
         }}
       >
@@ -468,7 +411,7 @@ export default function EarlyWarning() {
         ))}
       </div>
 
-      {/* ── Table ── */}
+      {/* Table */}
       <div
         style={{
           flex: 1,
@@ -520,7 +463,7 @@ export default function EarlyWarning() {
           ))}
         </div>
 
-        {/* Rows */}
+        {/* Empty state */}
         {warnings.length === 0 && !loading && (
           <div
             style={{
@@ -548,7 +491,7 @@ export default function EarlyWarning() {
           ))}
         </div>
 
-        {/* Footer bar */}
+        {/* Footer */}
         <div
           style={{
             borderTop: `1px solid ${C.border}`,

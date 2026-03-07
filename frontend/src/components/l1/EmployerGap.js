@@ -1,24 +1,43 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../../api";
 
 const CITIES = [
-  "Bangalore", "Mumbai", "Delhi", "Hyderabad", 
-  "Pune", "Chennai", "Kolkata", "Jaipur", 
-  "Ahmedabad", "Noida", "Indore", "Nagpur",
+  "Bangalore",
+  "Mumbai",
+  "Delhi",
+  "Hyderabad",
+  "Pune",
+  "Chennai",
+  "Kolkata",
+  "Jaipur",
+  "Ahmedabad",
+  "Noida",
+  "Indore",
+  "Nagpur",
 ];
 
 const EmployerGap = () => {
   const [data, setData] = useState([]);
   const [city, setCity] = useState("");
   const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(new Set());
+
+  const toggleExpand = (i) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(i) ? next.delete(i) : next.add(i);
+      return next;
+    });
 
   const load = async () => {
     setLoading(true);
     try {
       const p = city ? `?city=${city}` : "";
-      const res = await axios.get(`/api/l1/employer-gap${p}`);
+      const res = await api.get(`/api/l1/employer-gap${p}`);
       // Sort data by highest gap score first to ensure the top 8 are the most critical
-      const sortedData = res.data.data.sort((a, b) => b.gap_score - a.gap_score);
+      const sortedData = res.data.data.sort(
+        (a, b) => b.gap_score - a.gap_score,
+      );
       setData(sortedData);
     } catch (e) {
       console.error(e);
@@ -40,9 +59,7 @@ const EmployerGap = () => {
       <div style={e.header}>
         <div>
           <div style={e.title}>Employer-Side View</div>
-          <div style={e.sub}>
-            Supply vs Demand gap — Top Critical Shortages
-          </div>
+          <div style={e.sub}>Supply vs Demand gap — Top Critical Shortages</div>
         </div>
         <select
           style={e.sel}
@@ -65,7 +82,13 @@ const EmployerGap = () => {
       {!loading && data.length === 0 && (
         <div style={e.empty}>
           <div style={{ fontSize: "2rem" }}></div>
-          <div style={{ color: "#fff", fontWeight: 600, margin: "0.5rem 0 0.25rem" }}>
+          <div
+            style={{
+              color: "#fff",
+              fontWeight: 600,
+              margin: "0.5rem 0 0.25rem",
+            }}
+          >
             No employer data yet
           </div>
           <div style={{ color: "#606080", fontSize: "0.85rem" }}>
@@ -85,7 +108,10 @@ const EmployerGap = () => {
             <div style={e.kpi}>
               <div style={e.kL}>Avg Skill Gap</div>
               <div style={{ ...e.kV, color: "#ff9900" }}>
-                {Math.round(data.reduce((s, d) => s + d.gap_score, 0) / data.length)}%
+                {Math.round(
+                  data.reduce((s, d) => s + d.gap_score, 0) / data.length,
+                )}
+                %
               </div>
             </div>
             <div style={e.kpi}>
@@ -106,24 +132,59 @@ const EmployerGap = () => {
           <div style={e.grid}>
             {data.slice(0, 8).map((row, i) => {
               const col = gapColor(row.gap_score);
+              const isExpanded = expanded.has(i);
               return (
-                <div key={i} style={{ ...e.card, borderTop: `3px solid ${col}` }}>
+                <div
+                  key={i}
+                  style={{
+                    ...e.card,
+                    borderTop: `3px solid ${col}`,
+                    cursor: "pointer",
+                  }}
+                  onClick={() => toggleExpand(i)}
+                >
                   <div style={e.cardHdr}>
                     <div>
                       <div style={e.cardCity}>{row.city}</div>
                       <div style={e.cardRole}>{row.role}</div>
                     </div>
                     <div style={e.gapBadge}>
-                      <div style={{ ...e.gapVal, color: col }}>{row.gap_score}%</div>
+                      <div style={{ ...e.gapVal, color: col }}>
+                        {row.gap_score}%
+                      </div>
                       <div style={e.gapLabel}>GAP</div>
                     </div>
                   </div>
 
                   <div style={e.skillSection}>
-                    <div style={e.sLabel}>Employers want</div>
+                    <div
+                      style={{
+                        ...e.sLabel,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span>Employers want</span>
+                      {row.top_demanded_skills.length > 4 && (
+                        <span
+                          style={{
+                            color: "#606080",
+                            fontSize: "0.6rem",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {isExpanded
+                            ? "▲ less"
+                            : `+${row.top_demanded_skills.length - 4} more ▼`}
+                        </span>
+                      )}
+                    </div>
                     <div style={e.chips}>
-                      {/* Limit to top 4 skills to prevent excessive wrapping */}
-                      {row.top_demanded_skills.slice(0, 4).map((sk) => {
+                      {(isExpanded
+                        ? row.top_demanded_skills
+                        : row.top_demanded_skills.slice(0, 4)
+                      ).map((sk) => {
                         const covered = row.pmkvy_covered.includes(sk);
                         return (
                           <span
@@ -135,25 +196,45 @@ const EmployerGap = () => {
                               border: `1px solid ${covered ? "#2a4a3a" : "#4a2a1a"}`,
                             }}
                           >
-                            {covered ? "✓ " : ""}{sk}
+                            {covered ? "✓ " : ""}
+                            {sk}
                           </span>
                         );
                       })}
-                      {row.top_demanded_skills.length > 4 && (
-                        <span style={{ ...e.chip, background: "transparent", color: "#606080", border: "none" }}>
-                          +{row.top_demanded_skills.length - 4} more
-                        </span>
-                      )}
                     </div>
                   </div>
 
                   {row.skill_gap.length > 0 && (
                     <div style={e.skillSection}>
-                      <div style={{ ...e.sLabel, color: "#ff9900" }}>
-                        ⚠️ Missing in Training
+                      <div
+                        style={{
+                          ...e.sLabel,
+                          color: "#ff9900",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <span>⚠️ Missing in Training</span>
+                        {row.skill_gap.length > 3 && (
+                          <span
+                            style={{
+                              color: "#606080",
+                              fontSize: "0.6rem",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {isExpanded
+                              ? ""
+                              : `+${row.skill_gap.length - 3} more`}
+                          </span>
+                        )}
                       </div>
                       <div style={e.chips}>
-                        {row.skill_gap.slice(0, 3).map((sk) => (
+                        {(isExpanded
+                          ? row.skill_gap
+                          : row.skill_gap.slice(0, 3)
+                        ).map((sk) => (
                           <span
                             key={sk}
                             style={{
@@ -184,54 +265,103 @@ const EmployerGap = () => {
 const e = {
   container: { height: "100%", display: "flex", flexDirection: "column" },
   header: {
-    display: "flex", justifyContent: "space-between", alignItems: "center",
-    marginBottom: "1rem", flexShrink: 0
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "1rem",
+    flexShrink: 0,
   },
   title: { color: "#fff", fontWeight: 700, fontSize: "1.1rem" },
   sub: { color: "#606080", fontSize: "0.8rem", marginTop: "0.1rem" },
   sel: {
-    background: "#0f0f1a", color: "#fff", border: "1px solid #2a2a4a",
-    borderRadius: "6px", padding: "0.4rem 0.75rem", fontSize: "0.85rem",
+    background: "#0f0f1a",
+    color: "#fff",
+    border: "1px solid #2a2a4a",
+    borderRadius: "6px",
+    padding: "0.4rem 0.75rem",
+    fontSize: "0.85rem",
   },
   center: { display: "flex", justifyContent: "center", padding: "3rem" },
   spin: {
-    width: "20px", height: "20px", border: "2px solid #2a2a4a",
-    borderTop: "2px solid #e94560", borderRadius: "50%",
+    width: "20px",
+    height: "20px",
+    border: "2px solid #2a2a4a",
+    borderTop: "2px solid #e94560",
+    borderRadius: "50%",
     animation: "spin 0.8s linear infinite",
   },
-  empty: { textAlign: "center", padding: "3rem", background: "#0f0f1a", border: "1px dashed #2a2a4a", borderRadius: "10px" },
+  empty: {
+    textAlign: "center",
+    padding: "3rem",
+    background: "#0f0f1a",
+    border: "1px dashed #2a2a4a",
+    borderRadius: "10px",
+  },
   kpis: {
-    display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.75rem",
-    marginBottom: "1rem", flexShrink: 0
+    display: "grid",
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap: "0.75rem",
+    marginBottom: "1rem",
+    flexShrink: 0,
   },
   kpi: {
-    background: "#0f0f1a", border: "1px solid #2a2a4a", borderRadius: "8px",
-    padding: "0.6rem 0.8rem", display: "flex", flexDirection: "column", justifyContent: "center"
+    background: "#0f0f1a",
+    border: "1px solid #2a2a4a",
+    borderRadius: "8px",
+    padding: "0.6rem 0.8rem",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
   },
-  kL: { color: "#606080", fontSize: "0.65rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "0.2rem" },
+  kL: {
+    color: "#606080",
+    fontSize: "0.65rem",
+    fontWeight: 600,
+    textTransform: "uppercase",
+    letterSpacing: "0.04em",
+    marginBottom: "0.2rem",
+  },
   kV: { color: "#fff", fontSize: "1.3rem", fontWeight: 800, lineHeight: 1 },
   grid: {
-    display: "grid", 
-    // Forces exactly 4 columns. If the screen is too small, it will gracefully shrink.
-    gridTemplateColumns: "repeat(4, minmax(0, 1fr))", 
+    display: "grid",
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
     gap: "0.75rem",
-    // Removes the need to scroll by taking up the remaining space
-    overflow: "hidden" 
+    overflowY: "auto",
+    alignItems: "start",
   },
   card: {
-    background: "#0f0f1a", border: "1px solid #2a2a4a", borderRadius: "8px",
-    padding: "0.8rem", display: "flex", flexDirection: "column", gap: "0.5rem"
+    background: "#0f0f1a",
+    border: "1px solid #2a2a4a",
+    borderRadius: "8px",
+    padding: "0.8rem",
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.5rem",
   },
-  cardHdr: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" },
+  cardHdr: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
   cardCity: { color: "#fff", fontWeight: 700, fontSize: "0.9rem" },
   cardRole: { color: "#a0a0b0", fontSize: "0.75rem", marginTop: "0.1rem" },
   gapBadge: { textAlign: "right" },
   gapVal: { fontWeight: 800, fontSize: "1.2rem", lineHeight: 1 },
-  gapLabel: { color: "#606080", fontSize: "0.6rem", textTransform: "uppercase", marginTop: "2px" },
+  gapLabel: {
+    color: "#606080",
+    fontSize: "0.6rem",
+    textTransform: "uppercase",
+    marginTop: "2px",
+  },
   skillSection: { display: "flex", flexDirection: "column", gap: "0.25rem" },
   sLabel: { color: "#606080", fontSize: "0.65rem", fontWeight: 600 },
   chips: { display: "flex", flexWrap: "wrap", gap: "0.25rem" },
-  chip: { borderRadius: "4px", padding: "0.15rem 0.4rem", fontSize: "0.7rem", whiteSpace: "nowrap" },
+  chip: {
+    borderRadius: "4px",
+    padding: "0.15rem 0.4rem",
+    fontSize: "0.7rem",
+    whiteSpace: "nowrap",
+  },
 };
 
 export default EmployerGap;

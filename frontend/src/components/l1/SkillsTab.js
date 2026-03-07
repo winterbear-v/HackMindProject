@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import axios from "axios";
+import api from "../../api";
 
-// ── Design tokens (aligned with HiringTrends) ─────────────────────────────────
+// ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
   bg: "#0B0E13",
   surface: "#141821",
@@ -9,11 +9,11 @@ const C = {
   border: "#2A3144",
   accent: "#F97316",
   accentDim: "rgba(249, 115, 22, 0.15)",
-  teal: "#10B981", // injected standard emerald for positive charts
+  teal: "#10B981",
   tealDim: "rgba(16, 185, 129, 0.15)",
-  amber: "#F97316", // mapped from Orange
+  amber: "#F97316",
   amberDim: "rgba(249, 115, 22, 0.15)",
-  violet: "#3B82F6", // mapped from Blue
+  violet: "#3B82F6",
   violetDim: "rgba(59, 130, 246, 0.15)",
   yellow: "#F97316",
   text: "#E5E7EB",
@@ -46,7 +46,7 @@ const ROLES = [
   "Digital Marketing",
 ];
 
-// ── Skill gap: PMKVY/SWAYAM trains for these ────────────────────────────────
+// ── Skill gap: PMKVY/SWAYAM trains for these ─────────────────────────────────
 const GOVT_TRAINED = [
   "excel",
   "tally",
@@ -65,7 +65,7 @@ const GOVT_TRAINED = [
   "crm",
 ];
 
-// ── Micro bar (inline sparkline) ──────────────────────────────────────────────
+// ── Micro bar ─────────────────────────────────────────────────────────────────
 function MiniBar({ pct, color, height = 6 }) {
   const w = useRef(null);
   useEffect(() => {
@@ -125,94 +125,87 @@ function SkillRow({
       {showRank && (
         <span
           style={{
-            width: 22,
+            width: 16,
+            fontSize: 9,
             color: C.muted,
-            fontSize: 10,
             fontFamily: "monospace",
             flexShrink: 0,
           }}
         >
-          #{rank}
+          {rank}
         </span>
       )}
       <span
         style={{
-          width: 120,
+          width: 90,
           fontSize: 11,
           color: C.text,
+          flexShrink: 0,
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
-          flexShrink: 0,
         }}
-        title={skill}
       >
         {skill}
       </span>
-      {govtTrained !== undefined && (
-        <span
-          style={{
-            fontSize: 9,
-            padding: "1px 5px",
-            borderRadius: 3,
-            flexShrink: 0,
-            background: govtTrained ? C.tealDim : C.accentDim,
-            color: govtTrained ? C.teal : C.accent,
-            border: `1px solid ${
-              govtTrained ? C.teal + "44" : C.accent + "44"
-            }`,
-          }}
-        >
-          {govtTrained ? "GOV" : "GAP"}
-        </span>
-      )}
       <MiniBar pct={barPct} color={color} />
-      <span
-        style={{
-          width: 44,
-          textAlign: "right",
-          fontSize: 11,
-          fontWeight: 700,
-          color,
-          fontFamily: "monospace",
-          flexShrink: 0,
-        }}
-      >
-        {count}
-      </span>
-      {pct !== undefined && (
+      {pct != null && (
         <span
           style={{
-            width: 50,
+            width: 34,
+            fontSize: 9,
+            fontWeight: 700,
             textAlign: "right",
-            fontSize: 10,
-            fontWeight: 600,
-            color,
-            fontFamily: "monospace",
             flexShrink: 0,
+            color: pct > 0 ? C.teal : C.accent,
+            fontFamily: "monospace",
           }}
         >
           {pct > 0 ? "+" : ""}
           {pct}%
         </span>
       )}
+      <span
+        style={{
+          width: 34,
+          fontSize: 9,
+          fontWeight: 700,
+          textAlign: "right",
+          flexShrink: 0,
+          color,
+          fontFamily: "monospace",
+        }}
+      >
+        {count}
+      </span>
+      {govtTrained != null && (
+        <span
+          style={{
+            fontSize: 8,
+            padding: "1px 5px",
+            borderRadius: 3,
+            background: govtTrained ? C.tealDim : C.accentDim,
+            color: govtTrained ? C.teal : C.accent,
+            border: `1px solid ${govtTrained ? C.teal : C.accent}`,
+            flexShrink: 0,
+          }}
+        >
+          {govtTrained ? "✓" : "gap"}
+        </span>
+      )}
     </div>
   );
 }
 
-// ── Gap Map card ──────────────────────────────────────────────────────────────
-function GapMap({ skills }) {
-  const top = [...skills]
-    .sort((a, b) => (b.this_week || 0) - (a.this_week || 0))
-    .slice(0, 14);
-  const maxC = Math.max(...top.map((s) => s.this_week || 0), 1);
+// ── Skill gap map ─────────────────────────────────────────────────────────────
+function SkillGapMap({ skills, maxVal }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-      {top.map((sk) => {
+      {skills.map((sk, i) => {
         const trained = GOVT_TRAINED.includes(
           String(sk.skill || "").toLowerCase(),
         );
-        const pct = ((sk.this_week || 0) / maxC) * 100;
+        const val = sk.this_week || 0;
         return (
           <div
             key={sk.skill}
@@ -220,33 +213,30 @@ function GapMap({ skills }) {
           >
             <span
               style={{
-                width: 110,
+                width: 80,
                 fontSize: 10,
                 color: C.text,
+                flexShrink: 0,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
-                flexShrink: 0,
               }}
-              title={sk.skill}
             >
               {sk.skill}
             </span>
             <div
               style={{
                 flex: 1,
-                height: 14,
+                height: 6,
                 background: C.grid,
                 borderRadius: 3,
                 overflow: "hidden",
-                position: "relative",
               }}
             >
               <div
                 style={{
+                  width: `${maxVal > 0 ? (val / maxVal) * 100 : 0}%`,
                   height: "100%",
-                  borderRadius: 3,
-                  width: pct + "%",
                   background: trained
                     ? `linear-gradient(90deg, ${C.teal}, ${C.teal}88)`
                     : `linear-gradient(90deg, ${C.accent}, ${C.accent}88)`,
@@ -327,7 +317,7 @@ const CATS = [
   },
   {
     label: "Office",
-    color: C.amber,
+    color: "#F97316",
     keys: [
       "excel",
       "ms office",
@@ -340,7 +330,7 @@ const CATS = [
   },
   {
     label: "Soft",
-    color: C.violet,
+    color: "#3B82F6",
     keys: [
       "communication",
       "customer service",
@@ -367,7 +357,7 @@ export default function SkillsTab() {
       const p = new URLSearchParams({ limit: 20 });
       if (city) p.append("city", city);
       if (role) p.append("role", role);
-      const res = await axios.get(`/api/l1/skills?${p}`);
+      const res = await api.get(`/api/l1/skills?${p}`);
       setData(res.data?.data || null);
     } catch (e) {
       console.error(e);
@@ -426,158 +416,143 @@ export default function SkillsTab() {
   const gapPct = topDemand.length
     ? Math.round((gapSkills.length / topDemand.length) * 100)
     : 0;
+  const maxGap = Math.max(...topDemand.map((s) => s.this_week || 0), 1);
 
-  const selectStyle = {
+  const selStyle = {
     background: C.surface,
     color: C.text,
     border: `1px solid ${C.border}`,
-    borderRadius: 8,
-    padding: "6px 12px",
+    borderRadius: 6,
+    padding: "5px 10px",
     fontSize: 12,
     cursor: "pointer",
-    outline: "none",
-    fontFamily: "inherit",
-  };
-  const btnStyle = {
-    background: "transparent",
-    color: C.muted,
-    border: `1px solid ${C.border}`,
-    borderRadius: 8,
-    padding: "6px 12px",
-    cursor: "pointer",
-    fontSize: 11,
-    fontFamily: "'JetBrains Mono', monospace",
-    transition: "color 0.15s, border-color 0.15s",
   };
 
   return (
     <div
       style={{
         background: C.bg,
+        padding: 20,
+        borderRadius: 16,
+        fontFamily: "'Inter',sans-serif",
         color: C.text,
-        fontFamily: "'IBM Plex Sans', 'Segoe UI', sans-serif",
-        padding: "16px",
-        boxSizing: "border-box",
       }}
     >
-      <link
-        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
-        rel="stylesheet"
-      />
-
-      {/* ── Filters bar ── */}
+      {/* Filters */}
       <div
         style={{
           display: "flex",
           gap: 10,
-          alignItems: "center",
+          marginBottom: 16,
           flexWrap: "wrap",
-          background: C.surface,
-          border: `1px solid ${C.border}`,
-          borderRadius: 10,
-          padding: "10px 14px",
-          marginBottom: 12,
+          alignItems: "center",
         }}
       >
-        <div
-          style={{
-            color: C.muted,
-            fontSize: 10,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            marginRight: 4,
-          }}
-        >
-          Skills Intel
-        </div>
         <select
+          style={selStyle}
           value={city}
           onChange={(e) => setCity(e.target.value)}
-          style={selectStyle}
         >
           <option value="">All Cities</option>
           {CITIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
+            <option key={c}>{c}</option>
           ))}
         </select>
         <select
+          style={selStyle}
           value={role}
           onChange={(e) => setRole(e.target.value)}
-          style={selectStyle}
         >
           <option value="">All Roles</option>
           {ROLES.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
+            <option key={r}>{r}</option>
           ))}
         </select>
-        <button onClick={load} style={btnStyle}>
+        <button onClick={load} style={{ ...selStyle, marginLeft: "auto" }}>
           ↻ Refresh
         </button>
-        {loading && (
-          <span
-            style={{
-              color: C.accent,
-              fontFamily: "monospace",
-              fontSize: 10,
-            }}
-          >
-            ● syncing…
-          </span>
-        )}
-
-        <div style={{ marginLeft: "auto", display: "flex", gap: 16 }}>
-          <div style={{ textAlign: "right" }}>
-            <div
-              style={{
-                fontSize: 10,
-                color: C.muted,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-              }}
-            >
-              Skill Gap
-            </div>
-            <div
-              style={{
-                fontFamily: "monospace",
-                fontSize: 16,
-                fontWeight: 700,
-                color: C.accent,
-              }}
-            >
-              {gapPct}%
-            </div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div
-              style={{
-                fontSize: 10,
-                color: C.muted,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-              }}
-            >
-              Skills Tracked
-            </div>
-            <div
-              style={{
-                fontFamily: "monospace",
-                fontSize: 16,
-                fontWeight: 700,
-                color: C.teal,
-              }}
-            >
-              {allSkills.length}
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Empty state (keeps layout tight) */}
+      {/* KPI row */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4,1fr)",
+          gap: 10,
+          marginBottom: 12,
+          flexShrink: 0,
+        }}
+      >
+        {[
+          {
+            label: "Total Skills",
+            value: allSkills.length,
+            sub: "tracked",
+            color: C.text,
+          },
+          {
+            label: "Rising",
+            value: rising.length,
+            sub: "demand up",
+            color: C.teal,
+          },
+          {
+            label: "Declining",
+            value: declining.length,
+            sub: "demand down",
+            color: C.accent,
+          },
+          {
+            label: "Skill Gap",
+            value: `${gapPct}%`,
+            sub: "not govt-trained",
+            color: "#F97316",
+          },
+        ].map((kpi) => (
+          <div
+            key={kpi.label}
+            style={{
+              background: C.card,
+              border: `1px solid ${C.border}`,
+              borderRadius: 10,
+              padding: "10px 12px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 10,
+                color: C.muted,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}
+            >
+              {kpi.label}
+            </div>
+            <div
+              style={{
+                fontFamily: "monospace",
+                fontSize: 16,
+                fontWeight: 700,
+                color: kpi.color,
+              }}
+            >
+              {kpi.value}
+            </div>
+            <div style={{ fontSize: 9, color: C.muted, marginTop: 2 }}>
+              {kpi.sub}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {loading && (
+        <div
+          style={{ textAlign: "center", padding: "32px 16px", color: C.muted }}
+        >
+          Loading skills…
+        </div>
+      )}
+
       {!loading && allSkills.length === 0 && (
         <div
           style={{
@@ -588,7 +563,7 @@ export default function SkillsTab() {
             borderRadius: 12,
           }}
         >
-          <div style={{ fontSize: 36 }}></div>
+          <div style={{ fontSize: 36 }}>📊</div>
           <div style={{ color: C.text, fontWeight: 700, marginTop: 8 }}>
             No skill data yet
           </div>
@@ -612,12 +587,12 @@ export default function SkillsTab() {
                 marginBottom: 12,
               }}
             >
-              ℹ️ Only one scraper run found — week-over-week change isn’t
+              ℹ️ Only one scraper run found — week-over-week change isn't
               available yet.
             </div>
           )}
 
-          {/* ── Row 1: Rising | Declining | Skill Gap Map — equal width, stretch to tallest ── */}
+          {/* Row 1: Rising | Declining | Skill Gap Map */}
           <div
             style={{
               display: "grid",
@@ -627,7 +602,6 @@ export default function SkillsTab() {
               marginBottom: 12,
             }}
           >
-            {/* Rising */}
             {showRising && (
               <div
                 style={{
@@ -646,13 +620,15 @@ export default function SkillsTab() {
                   </div>
                   <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>
                     {city || "All Cities"} · {role || "All Roles"}
-                    {noWeeklyChange
-                      ? " · ranked by count"
-                      : " · week-over-week"}
                   </div>
                 </div>
                 <div
-                  style={{ display: "flex", flexDirection: "column", gap: 1 }}
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 2,
+                  }}
                 >
                   {rising.map((sk, i) => (
                     <SkillRow
@@ -661,19 +637,15 @@ export default function SkillsTab() {
                       skill={sk.skill}
                       count={sk.this_week || 0}
                       maxCount={maxR}
-                      pct={noWeeklyChange ? undefined : sk.pct_change}
+                      pct={noWeeklyChange ? null : sk.delta}
                       color={C.teal}
-                      showRank
-                      govtTrained={GOVT_TRAINED.includes(
-                        String(sk.skill || "").toLowerCase(),
-                      )}
+                      showRank={true}
                     />
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Declining */}
             {showDeclining && (
               <div
                 style={{
@@ -688,17 +660,19 @@ export default function SkillsTab() {
               >
                 <div style={{ marginBottom: 10, flexShrink: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
-                    {noWeeklyChange ? "Lower Frequency" : "Declining Skills"}
+                    {noWeeklyChange ? "Bottom Skills" : "Declining Skills"}
                   </div>
                   <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>
                     {city || "All Cities"} · {role || "All Roles"}
-                    {noWeeklyChange
-                      ? " · ranked by count"
-                      : " · week-over-week"}
                   </div>
                 </div>
                 <div
-                  style={{ display: "flex", flexDirection: "column", gap: 1 }}
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 2,
+                  }}
                 >
                   {declining.map((sk, i) => (
                     <SkillRow
@@ -709,129 +683,43 @@ export default function SkillsTab() {
                         (noWeeklyChange ? sk.this_week : sk.last_week) || 0
                       }
                       maxCount={maxD}
-                      pct={noWeeklyChange ? undefined : sk.pct_change}
+                      pct={noWeeklyChange ? null : sk.delta}
                       color={C.accent}
-                      showRank
-                      govtTrained={GOVT_TRAINED.includes(
-                        String(sk.skill || "").toLowerCase(),
-                      )}
+                      showRank={true}
                     />
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Skill Gap Map */}
             {showRight && (
               <div
                 style={{
                   background: C.card,
                   border: `1px solid ${C.border}`,
                   borderRadius: 12,
-                  padding: "14px",
+                  padding: "14px 14px 12px",
                   display: "flex",
                   flexDirection: "column",
-                  borderTop: `2px solid ${C.amber}`,
+                  borderTop: `2px solid #F97316`,
                 }}
               >
-                {/* Header + stat pills */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    justifyContent: "space-between",
-                    marginBottom: 12,
-                    flexShrink: 0,
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{ fontSize: 13, fontWeight: 700, color: C.text }}
-                    >
-                     Skill Gap Map
-                    </div>
-                    <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>
-                      Hired by market vs trained by PMKVY / SWAYAM
-                    </div>
+                <div style={{ marginBottom: 10, flexShrink: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
+                    Skill Gap Map
                   </div>
-                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                    <div
-                      style={{
-                        background: C.tealDim,
-                        border: `1px solid ${C.teal}33`,
-                        borderRadius: 7,
-                        padding: "5px 10px",
-                        textAlign: "center",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 9,
-                          color: C.muted,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.08em",
-                        }}
-                      >
-                        Govt Covered
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 17,
-                          fontWeight: 700,
-                          color: C.teal,
-                          fontFamily: "monospace",
-                          lineHeight: 1.2,
-                        }}
-                      >
-                        {trainedSkills.length}
-                      </div>
-                      <div style={{ fontSize: 9, color: C.muted }}>
-                        of top demand
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        background: C.accentDim,
-                        border: `1px solid ${C.accent}33`,
-                        borderRadius: 7,
-                        padding: "5px 10px",
-                        textAlign: "center",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 9,
-                          color: C.muted,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.08em",
-                        }}
-                      >
-                        Market Gap
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 17,
-                          fontWeight: 700,
-                          color: C.accent,
-                          fontFamily: "monospace",
-                          lineHeight: 1.2,
-                        }}
-                      >
-                        {gapPct}%
-                      </div>
-                      <div style={{ fontSize: 9, color: C.muted }}>
-                        not govt-trained
-                      </div>
-                    </div>
+                  <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>
+                    {gapPct}% of top skills not covered by PMKVY/SWAYAM
                   </div>
                 </div>
-                {/* Bar list */}
-                <GapMap skills={allSkills} />
+                <div style={{ flex: 1, overflowY: "auto" }}>
+                  <SkillGapMap skills={topDemand} maxVal={maxGap} />
+                </div>
               </div>
             )}
           </div>
 
-          {/* ── Row 2: Skill Categories — full width, 3 equal columns ── */}
+          {/* Row 2: Categories */}
           {showRight && (
             <div
               style={{
@@ -839,7 +727,7 @@ export default function SkillsTab() {
                 border: `1px solid ${C.border}`,
                 borderRadius: 12,
                 padding: "14px 16px",
-                borderTop: `2px solid ${C.violet}`,
+                borderTop: `2px solid #3B82F6`,
                 marginBottom: 12,
               }}
             >
@@ -901,12 +789,8 @@ export default function SkillsTab() {
                             key={sk.skill}
                             style={{
                               display: "flex",
-                              alignItems: "center",
                               justifyContent: "space-between",
-                              padding: "3px 8px",
-                              borderRadius: 4,
-                              background: cat.color + "12",
-                              border: `1px solid ${cat.color}22`,
+                              alignItems: "center",
                             }}
                           >
                             <span style={{ fontSize: 10, color: C.text }}>
@@ -914,7 +798,7 @@ export default function SkillsTab() {
                             </span>
                             <span
                               style={{
-                                fontSize: 10,
+                                fontSize: 9,
                                 color: cat.color,
                                 fontFamily: "monospace",
                                 fontWeight: 700,
@@ -931,40 +815,8 @@ export default function SkillsTab() {
               </div>
             </div>
           )}
-
-          {/* ── Footer ── */}
-          <div
-            style={{
-              marginTop: 2,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                background: C.teal,
-                borderRadius: "50%",
-                display: "inline-block",
-              }}
-            />
-            <span style={{ color: C.muted, fontSize: 10 }}>
-              Source: Naukri scrape · PMKVY/SWAYAM catalog · Refreshes on filter
-              change ·{" "}
-              {new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}{" "}
-              IST
-            </span>
-          </div>
         </>
       )}
-
-      <style>{`
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 4px; }
-      `}</style>
     </div>
   );
 }

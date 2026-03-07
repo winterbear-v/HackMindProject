@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../../api";
 
 const ReskillPlan = ({ profileId, extractedSkills }) => {
   const [data, setData] = useState(null);
@@ -9,7 +9,7 @@ const ReskillPlan = ({ profileId, extractedSkills }) => {
   useEffect(() => {
     const fetch = async () => {
       try {
-        const res = await axios.post(`/api/l2/profile/${profileId}/reskill`);
+        const res = await api.post(`/api/l2/profile/${profileId}/reskill`);
         setData(res.data.data);
       } catch (e) {
         console.error(e);
@@ -23,7 +23,7 @@ const ReskillPlan = ({ profileId, extractedSkills }) => {
   if (loading)
     return (
       <div style={p.loading}>
-         Generating your personalised reskilling path…
+        🔄 Generating your personalised reskilling path…
       </div>
     );
   if (!data) return <div style={p.loading}>Could not generate plan.</div>;
@@ -42,7 +42,7 @@ const ReskillPlan = ({ profileId, extractedSkills }) => {
                 key={s}
                 style={{
                   ...p.chip,
-                  background: "rgba(16, 185, 129, 0.15)", // Emerald
+                  background: "rgba(16, 185, 129, 0.15)",
                   color: "#10B981",
                   border: "1px solid rgba(16, 185, 129, 0.3)",
                 }}
@@ -63,7 +63,7 @@ const ReskillPlan = ({ profileId, extractedSkills }) => {
                 key={s}
                 style={{
                   ...p.chip,
-                  background: "rgba(249, 115, 22, 0.15)", // Orange
+                  background: "rgba(249, 115, 22, 0.15)",
                   color: "#F97316",
                   border: "1px solid rgba(249, 115, 22, 0.3)",
                 }}
@@ -123,7 +123,7 @@ const ReskillPlan = ({ profileId, extractedSkills }) => {
                   <div style={p.weekAction}>{w.action}</div>
                   <div style={p.weekMeta}>
                     <span style={p.weekHours}>
-                       {w.hours_per_week} hrs/week
+                      ⏱ {w.hours_per_week} hrs/week
                     </span>
                     <a
                       href={w.resource_link}
@@ -131,7 +131,7 @@ const ReskillPlan = ({ profileId, extractedSkills }) => {
                       rel="noreferrer"
                       style={p.weekLink}
                     >
-                       {w.resource} 
+                      📚 {w.resource}
                     </a>
                   </div>
                 </div>
@@ -190,9 +190,12 @@ const p = {
     display: "flex",
     flexDirection: "column",
     gap: "0.2rem",
-    transition: "all 0.2s"
+    transition: "all 0.2s",
   },
-  roleBtnActive: { border: "1px solid #F97316", background: "rgba(249, 115, 22, 0.08)" },
+  roleBtnActive: {
+    border: "1px solid #F97316",
+    background: "rgba(249, 115, 22, 0.08)",
+  },
   roleName: { color: "#E5E7EB", fontSize: "0.88rem", fontWeight: 600 },
   roleConf: { color: "#9CA3AF", fontSize: "0.75rem" },
   planWrap: {
