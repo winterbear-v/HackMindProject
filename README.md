@@ -4,18 +4,37 @@
 
 SkillsMirage is a full-stack web application built for Indian workers to understand their risk of AI-driven job displacement and receive actionable, week-by-week reskilling paths using free government courses (NPTEL, SWAYAM, PMKVY).
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-black?style=for-the-badge&logo=vercel)](https://hack-mind-project.vercel.app)
+[![Backend API](https://img.shields.io/badge/Backend%20API-Render-46E3B7?style=for-the-badge&logo=render)](https://skillsmirage-backend.onrender.com)
+[![MongoDB](https://img.shields.io/badge/Database-MongoDB%20Atlas-47A248?style=for-the-badge&logo=mongodb)](https://cloud.mongodb.com)
+
 ---
 
 ## 📌 Table of Contents
 
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-- [Environment Variables](#environment-variables)
-- [API Reference](#api-reference)
-- [How It Works](#how-it-works)
-- [Target Cities & Roles](#target-cities--roles)
+- [Live Deployment](#-live-deployment)
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Project Structure](#-project-structure)
+- [Getting Started Locally](#-getting-started-locally)
+- [Environment Variables](#-environment-variables)
+- [Deployment Guide](#-deployment-guide)
+- [API Reference](#-api-reference)
+- [How It Works](#-how-it-works)
+- [Target Cities & Roles](#-target-cities--roles)
+- [Common Issues & Fixes](#-common-issues--fixes)
+
+---
+
+## 🌐 Live Deployment
+
+| Service | Platform | URL |
+|---|---|---|
+| **Frontend** | Vercel | https://hack-mind-project.vercel.app |
+| **Backend API** | Render | https://skillsmirage-backend.onrender.com |
+| **Database** | MongoDB Atlas | Cloud-hosted (private) |
+
+> ⚠️ The backend is hosted on Render's **free tier** — the first request after inactivity may take **30–50 seconds** to wake up. Subsequent requests are fast.
 
 ---
 
@@ -37,7 +56,7 @@ SkillsMirage is a full-stack web application built for Indian workers to underst
 ## 🛠️ Tech Stack
 
 ### Backend
-- **FastAPI** (Python) — REST API framework
+- **FastAPI** (Python 3.11) — REST API framework
 - **Motor** — Async MongoDB driver
 - **MongoDB Atlas** — Cloud database
 - **Groq API** — LLM provider (llama-3.3-70b-versatile) — free, no card required
@@ -45,12 +64,19 @@ SkillsMirage is a full-stack web application built for Indian workers to underst
 - **JWT** — Authentication tokens
 - **httpx** — Async HTTP client
 - **python-dotenv** — Environment config
+- **passlib[bcrypt]** — Password hashing
 
 ### Frontend
 - **React 18** — UI framework
 - **React Router v6** — Client-side routing
 - **Axios** — HTTP requests
+- **Recharts** — Data visualization
 - **Create React App** — Build tooling
+
+### Infrastructure
+- **Vercel** — Frontend hosting (CDN, auto-deploy)
+- **Render** — Backend hosting (Python 3.11, free tier)
+- **MongoDB Atlas** — Cloud database (free tier, M0)
 
 ---
 
@@ -58,9 +84,10 @@ SkillsMirage is a full-stack web application built for Indian workers to underst
 
 ```
 HackMindProject/
+├── .python-version              # Pins Python 3.11.9 for Render
 ├── backend/
 │   ├── core/
-│   │   ├── database.py          # MongoDB connection (SSL-safe for Python 3.13)
+│   │   ├── database.py          # MongoDB connection (SSL-safe)
 │   │   └── security.py          # JWT token creation & verification
 │   ├── middleware/
 │   │   └── auth.py              # Auth middleware / get_current_user
@@ -77,7 +104,7 @@ HackMindProject/
 │   ├── scraper/
 │   │   └── job_scraper.py       # JSearch API scraper + seed data fallback
 │   ├── services/
-│   │   ├── chat_service.py      # Groq/Gemini chatbot with L1 RAG context
+│   │   ├── chat_service.py      # Groq chatbot with L1 RAG context
 │   │   ├── nlp_service.py       # Skill extraction from free text
 │   │   ├── risk_service.py      # AI displacement risk score computation
 │   │   └── reskill_service.py   # Week-by-week reskilling path generator
@@ -86,34 +113,36 @@ HackMindProject/
 │
 └── frontend/
     ├── public/
+    ├── vercel.json              # Vercel routing config for React Router
     └── src/
         ├── components/
         │   ├── Navbar.js
         │   ├── l1/
-        │   │   ├── AdminPanel.js       # Scraper control UI
-        │   │   ├── TrendsTab.js        # Hiring trends chart
-        │   │   ├── SkillsTab.js        # Rising/declining skills
-        │   │   └── VulnerabilityTab.js # AI vulnerability index
+        │   │   ├── AdminPanel.js
+        │   │   ├── TrendsTab.js
+        │   │   ├── SkillsTab.js
+        │   │   └── VulnerabilityTab.js
         │   └── l2/
-        │       ├── WorkerPage.js       # Worker profile & risk score
-        │       └── ChatbotModal.js     # Bilingual AI chat interface
+        │       ├── WorkerPage.js
+        │       └── ChatbotModal.js
         ├── context/
-        │   └── AuthContext.js          # Global auth state
+        │   └── AuthContext.js
         ├── pages/
         │   ├── Home.js
         │   ├── Login.js
         │   ├── Register.js
         │   └── Dashboard.js
+        ├── index.js             # axios baseURL configured here
         └── App.js
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Getting Started Locally
 
 ### Prerequisites
 
-- Python 3.10+ (tested on 3.13)
+- Python 3.11+
 - Node.js 18+
 - MongoDB Atlas account (free tier works)
 - Groq API key (free at [console.groq.com](https://console.groq.com))
@@ -122,7 +151,7 @@ HackMindProject/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/HackMindProject.git
+git clone https://github.com/HetuKariya/HackMindProject.git
 cd HackMindProject
 ```
 
@@ -134,7 +163,7 @@ cd backend
 # Install dependencies
 pip install -r requirements.txt
 
-# Create .env file (see Environment Variables section below)
+# Create .env file
 cp .env.example .env
 # Edit .env with your actual keys
 
@@ -164,19 +193,16 @@ npm start
 
 The app opens at **http://localhost:3000**
 
-> ⚠️ Both terminals must be running simultaneously. The frontend proxies API requests to `http://localhost:8000`.
+> ⚠️ Both terminals must be running simultaneously.
 
 ---
 
 ## 🔑 Environment Variables
 
-Create `backend/.env` with the following:
+### Backend — create `backend/.env`
 
 ```env
-PORT=8000
-
 # MongoDB Atlas connection string
-# Get from: cloud.mongodb.com → Connect → Drivers
 MONGO_URI=mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/mernapp?retryWrites=true&w=majority
 
 # JWT secret — generate with: python -c "import secrets; print(secrets.token_hex(32))"
@@ -186,27 +212,62 @@ JWT_SECRET=your_64_char_random_hex_string
 ENV=development
 
 # JSearch API (RapidAPI) — free 500 req/month
-# Get from: rapidapi.com → search "JSearch" → Subscribe → Copy X-RapidAPI-Key
 JSEARCH_API_KEY=your_jsearch_key_here
 
 # Groq API — FREE, 14,400 req/day, no credit card needed
-# Get from: console.groq.com → API Keys → Create API Key
 GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # Gemini API — optional fallback (free tier)
-# Get from: aistudio.google.com/apikey
 GEMINI_API_KEY=AIzaSy_xxxxxxxxxxxxxxxxxxxx
 ```
 
-### MongoDB Atlas Setup
+### Frontend — create `frontend/.env` (for local dev only)
 
-1. Go to [cloud.mongodb.com](https://cloud.mongodb.com)
-2. Create a free cluster
-3. **Database Access** → Add user with username & simple password (no special characters)
-4. **Network Access** → Add IP `0.0.0.0/0` (allow all)
-5. **Connect** → Drivers → Copy connection string → replace `<password>`
+```env
+REACT_APP_API_URL=http://localhost:8000
+```
 
-> 💡 **Note:** If your password has special characters like `@`, `#`, `!`, the `database.py` file auto-encodes them. But it's easiest to use a simple alphanumeric password.
+---
+
+## ☁️ Deployment Guide
+
+### Backend → Render
+
+| Setting | Value |
+|---|---|
+| **Root Directory** | `backend` |
+| **Runtime** | Python 3 |
+| **Build Command** | `pip install -r requirements.txt` |
+| **Start Command** | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
+
+**Environment Variables to add in Render dashboard:**
+
+| Key | Value |
+|---|---|
+| `PYTHON_VERSION` | `3.11.9` |
+| `MONGO_URI` | your Atlas connection string |
+| `JWT_SECRET` | your secret key |
+| `JSEARCH_API_KEY` | your RapidAPI key |
+| `GROQ_API_KEY` | your Groq key |
+| `GEMINI_API_KEY` | your Gemini key (optional) |
+| `ENV` | `production` |
+| `FRONTEND_URL` | your Vercel URL |
+
+### Frontend → Vercel
+
+| Setting | Value |
+|---|---|
+| **Root Directory** | `frontend` |
+| **Framework** | Create React App |
+| **Build Command** | `npm run build` |
+| **Output Directory** | `build` |
+
+**Environment Variables to add in Vercel dashboard:**
+
+| Key | Value |
+|---|---|
+| `REACT_APP_API_URL` | `https://skillsmirage-backend.onrender.com` |
+| `CI` | `false` |
 
 ---
 
@@ -223,7 +284,7 @@ GEMINI_API_KEY=AIzaSy_xxxxxxxxxxxxxxxxxxxx
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/api/l1/scrape` | Trigger scraper run (background) |
-| GET | `/api/l1/status` | Scraper status & job post counts |
+| GET | `/api/l1/status` | Scraper status & last run info |
 | GET | `/api/l1/trends` | Hiring trends by city/role over time |
 | GET | `/api/l1/skills` | Rising & declining skills |
 | GET | `/api/l1/vulnerability` | AI Vulnerability Index by city/role |
@@ -248,24 +309,23 @@ GEMINI_API_KEY=AIzaSy_xxxxxxxxxxxxxxxxxxxx
 
 1. **Scraper** calls JSearch API for each city × role combination (20 cities × 10 roles)
 2. Falls back to realistic **seed data** if API quota is exceeded
-3. Data is stored in MongoDB `job_posts` collection
-4. **Aggregator** runs after scraping — computes daily summaries per city+role stored in `aggregates` collection
+3. Data stored in MongoDB `job_posts` collection
+4. **Aggregator** computes daily summaries per city+role in `aggregates` collection
 5. Tracks: `posting_count`, `ai_tool_mention_rate`, `top_skills`, `remote_count`
 
 ### Layer 2 — Worker Intelligence
 
 1. Worker submits their **job title, city, years of experience, and a free-text writeup**
-2. **NLP service** extracts skills from the writeup using regex pattern matching against 40+ skill vocabulary items
+2. **NLP service** extracts skills using regex against 40+ skill vocabulary items
 3. **Risk service** computes a 0–100 score based on:
    - Hiring decline rate (L1 trend data)
    - AI tool mention rate in job descriptions
    - Skill gap vs. market demand
-4. **Reskilling service** finds target roles the worker can transition to and generates a week-by-week plan using real NPTEL, SWAYAM & PMKVY course links
+4. **Reskilling service** generates a week-by-week plan using NPTEL, SWAYAM & PMKVY links
 5. **Chatbot** answers questions using live L1 evidence as context (RAG pattern) via Groq LLM
 
-### Chatbot — 5 Question Types
+### Chatbot — Supported Question Types
 
-The AI advisor handles:
 1. "Why is my risk score so high?"
 2. "What jobs are safer for someone like me?"
 3. "Show me paths I can complete under 3 months"
@@ -288,13 +348,14 @@ Data Entry, BPO, Data Analyst, Software Engineer, Customer Support, Content Writ
 
 | Error | Fix |
 |---|---|
-| `ECONNREFUSED` on frontend | Backend is not running — start it with `uvicorn` in a separate terminal |
-| `bad auth: authentication failed` | Wrong username/password in `MONGO_URI` — check `backend/.env` |
-| `SSL handshake failed` | Already handled in `database.py` via `tlsAllowInvalidCertificates=True` |
-| `Username must be escaped RFC 3986` | Special chars in MongoDB password — use a simple alphanumeric password |
-| Gemini 429 rate limit | Use Groq instead — set `GROQ_API_KEY` in `.env` (free, no card) |
-| Gemini 404 model not found | Model updated to `gemini-2.0-flash` in `chat_service.py` |
-| `⚠️ No AI API key` | Add `GROQ_API_KEY=gsk_...` to `backend/.env` and restart backend |
+| First request takes 30–50s | Render free tier sleeps after inactivity — wait for it to wake up |
+| `CORS error` on frontend | Add `FRONTEND_URL` env var in Render with your exact Vercel URL |
+| `Registration failed` | Check browser DevTools → Network tab for the exact error |
+| `bad auth: authentication failed` | Wrong username/password in `MONGO_URI` |
+| `SSL handshake failed` | Handled in `database.py` via `tlsAllowInvalidCertificates=True` |
+| Build fails on Render | Add `PYTHON_VERSION=3.11.9` in Render environment variables |
+| React Router 404 on refresh | Ensure `frontend/vercel.json` exists with rewrite rules |
+| `⚠️ No AI API key` | Add `GROQ_API_KEY=gsk_...` to Render environment variables |
 
 ---
 
@@ -303,13 +364,16 @@ Data Entry, BPO, Data Analyst, Software Engineer, Customer Support, Content Writ
 ```
 fastapi==0.115.0
 uvicorn[standard]==0.29.0
-motor==3.7.1
-pymongo==4.16.0
+motor==3.6.0
+pymongo==4.9.2
 python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
 bcrypt==4.1.3
 python-dotenv==1.0.1
 pydantic[email]==2.10.6
+email-validator==2.1.1
 httpx==0.27.0
+python-multipart==0.0.9
 beautifulsoup4==4.12.3
 lxml==5.3.1
 ```
